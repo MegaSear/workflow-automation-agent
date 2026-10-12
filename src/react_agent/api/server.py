@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 # Agent setup
-MAX_TOOL_ROUNDS = 4
+MAX_TOOL_ROUNDS = 10
 
 agent = Agent(LLMClient())
 harness = Harness(agent, max_tool_rounds=MAX_TOOL_ROUNDS)

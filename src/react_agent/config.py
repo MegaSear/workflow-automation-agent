@@ -23,8 +23,6 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str 
     JWT_ALGORITHM: str = "HS256" 
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-
-    SANDBOX_REPO_PATH: str
     
     model_config = SettingsConfigDict(
         env_file=".env",
