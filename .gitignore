@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+
 # Python
 .venv/
 venv/
@@ -24,4 +25,6 @@ frontend/dist/
 
 TASK.md
 REPORT.md
+CODE_REVIEW.md
+
 docs/

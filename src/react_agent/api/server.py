@@ -20,11 +20,16 @@ from react_agent.db.database import Base, engine, get_db
 from react_agent.db.models import Conversation, Message, User
 from react_agent.llm.client import LLMClient
 from react_agent.agent.harness import Harness
+from contextlib import asynccontextmanager
 
-Base.metadata.create_all(bind=engine)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    Base.metadata.create_all(bind=engine)
+    yield
 
 # App setup
-app = FastAPI()
+app = FastAPI(lifespan=lifespan)
+
 
 app.add_middleware(
     CORSMiddleware,

@@ -1,3 +1,19 @@
+import os
+
+os.environ.update({
+    "LLM_API_KEY": "test-key",
+    "LLM_BASE_URL": "https://example.invalid/v1",
+    "LLM_MODEL": "test-model",
+    "DATABASE_URL": "sqlite://",
+    "POSTGRES_DB": "test",
+    "POSTGRES_USER": "test",
+    "POSTGRES_PASSWORD": "test",
+    "POSTGRES_PORT": "5432",
+    "JWT_SECRET_KEY": "test-secret-key-for-tests-only-0123456789",
+    "SANDBOX_REPO_PATH": "/tmp/sandbox-test",
+})
+
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

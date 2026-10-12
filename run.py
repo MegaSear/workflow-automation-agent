@@ -29,7 +29,7 @@ def ensure_sandbox_image():
         )
 
 def main():
-    subprocess.run(["docker", "compose", "up", "-d"])
+    subprocess.run(["docker", "compose", "up", "-d", "--wait"], check=True)
     ensure_sandbox_image()
     frontend = subprocess.Popen(["npm.cmd", "run", "dev"], cwd="frontend")
     server   = subprocess.Popen([sys.executable, "-m", "uvicorn", "react_agent.api.server:app", "--reload"])
@@ -42,7 +42,7 @@ def main():
         terminate_tree(frontend)
         terminate_tree(server)
 
-        subprocess.run(["docker", "compose", "down"])
+        subprocess.run(["docker", "compose", "down"], check=True)
 
 if __name__ == "__main__":
     main()
