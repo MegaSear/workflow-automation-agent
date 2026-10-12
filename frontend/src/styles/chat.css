@@ -1,0 +1,160 @@
+/* chat.css */
+
+/* ===== Область чата ===== */
+.chat {
+    flex: 1;
+
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    padding: 24px;
+
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    scrollbar-color: #aaa transparent;
+}
+
+.empty {
+    margin: auto;
+    color: var(--secondary-text);
+}
+
+.message {
+    max-width: 70%;
+    min-width: 0;
+
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+
+    padding: 10px 14px;
+    border-radius: 12px;
+    line-height: 1.4;
+}
+
+.message.user {
+    align-self: flex-end;
+    background: var(--message-user);
+}
+
+.message.assistant {
+    align-self: flex-start;
+    background: var(--message-assistant);
+}
+
+.thinking {
+    align-self: flex-start;
+
+    font-weight: 500;
+
+    background: linear-gradient(
+        90deg,
+        #777,
+        #fff,
+        #777
+    );
+
+    background-size: 200% auto;
+
+    color: transparent;
+    background-clip: text;
+    -webkit-background-clip: text;
+
+    animation: thinking-gradient 1.5s linear infinite;
+}
+
+@keyframes thinking-gradient {
+    from {
+        background-position: 200% center;
+    }
+
+    to {
+        background-position: -200% center;
+    }
+}
+
+
+/* ===== Поле ввода сообщения ===== */
+.input-area {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    padding: 16px 24px;
+    border-top: 1px solid var(--header-border);
+}
+
+.input-area input,
+.input-area textarea {
+    flex: 1;
+    min-width: 0;
+
+    padding: 12px;
+
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+
+    outline: none;
+
+    background: var(--background);
+    color: var(--text);
+}
+
+.input-area input::placeholder,
+.input-area textarea::placeholder {
+    color: var(--secondary-text);
+}
+
+.input-area input:focus,
+.input-area textarea:focus {
+    border-color: #888;
+}
+
+.message-input {
+    box-sizing: border-box;
+    flex: 1;
+    min-width: 0;
+    min-height: 42px;
+    max-height: 200px;
+    resize: none;
+    overflow-y: hidden;
+    font: inherit;
+    line-height: 1.5;
+}
+
+.send-button {
+    display: grid;
+    align-items: center;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--text);
+    color: var(--background);
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.2s;
+    justify-content: center;
+    padding: 0;
+}
+
+.send-button span {
+    display: block;
+    transform: translateY(-6px);
+    font-weight: 1500;
+    -webkit-text-stroke: 3.5px currentColor;
+}
+
+.send-button:hover:not(:disabled) {
+    transform: scale(1.05);
+}
+
+.send-button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}

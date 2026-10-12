@@ -1,0 +1,27 @@
+# Env Variables
+.env
+.env.*
+!.env.example
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Сборка Python
+*.egg-info/
+
+# Tests
+.coverage
+
+# Node.js и Vite
+node_modules/
+frontend/dist/
+
+# Dev
+.vscode
+
+TASK.md
+REPORT.md
+docs/

@@ -1,0 +1,57 @@
+/* buttons.css */
+
+.theme-button {
+    width: 36px;
+    height: 36px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+
+    background: transparent;
+    color: var(--text);
+
+    cursor: pointer;
+    font-size: 18px;
+
+    transition: background 0.2s, transform 0.2s;
+}
+
+.theme-button:hover {
+    background: var(--message-assistant);
+    transform: scale(1.05);
+}
+
+.logout-button {
+    padding: 8px 12px;
+    border: 1px solid var(--input-border);
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.logout-button:hover {
+    background: var(--message-assistant);
+}
+
+
+.input-area button {
+    padding: 12px 18px;
+
+    border: none;
+    border-radius: 8px;
+
+    background: var(--button-background);
+    color: var(--button-text);
+
+    cursor: pointer;
+}
+
+.input-area button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

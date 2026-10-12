@@ -1,0 +1,33 @@
+/* themes.css */
+
+body.light {
+    
+    background: #f5f5f5;
+    color: #222;
+
+    --background: #ffffff;
+    --header-border: #dddddd;
+    --message-user: #e5e5e5;
+    --message-assistant: #f0f0f0;
+    --input-border: #cccccc;
+    --button-background: #222;
+    --button-text: #fff;
+    --secondary-text: #888;
+    --text: #222222;
+}
+
+body.dark {
+
+    background: #111;
+    color: #eee;
+
+    --background: #111;
+    --header-border: #2a2a2a;
+    --message-user: #2a2a2a;
+    --message-assistant: #1d1d1d;
+    --input-border: #3a3a3a;
+    --button-background: #eee;
+    --button-text: #111;
+    --secondary-text: #777;
+    --text: #eeeeee;
+}

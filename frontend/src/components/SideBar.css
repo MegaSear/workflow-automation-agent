@@ -1,0 +1,320 @@
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 260px;
+    height: 100%;
+    box-sizing: border-box;
+    padding: 16px 12px;
+
+    background: var(--background);
+    color: var(--text);
+    border-right: 1px solid var(--header-border);
+    overflow: hidden;
+}
+
+.sidebar__header {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 0 4px 20px;
+}
+
+.sidebar__brand {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.sidebar__new-chat {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 10px 12px;
+
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--header-border);
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.sidebar__new-chat:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.sidebar__new-chat:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+.sidebar__content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.sidebar__heading {
+    margin: 0;
+    padding: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    opacity: 0.65;
+}
+
+.sidebar__empty {
+    padding: 8px;
+    font-size: 14px;
+    opacity: 0.65;
+}
+
+.sidebar__list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sidebar__item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+}
+
+.sidebar__conversation {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    padding: 10px;
+    overflow: hidden;
+
+    color: var(--text);
+    text-align: left;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.sidebar__delete {
+    flex: 0 0 32px;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+
+    color: var(--text);
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    opacity: 0.6;
+}
+
+.sidebar__delete:hover {
+    background: #dc2626;
+    color: white;
+    opacity: 1;
+}
+
+.sidebar__conversation:hover {
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.sidebar__conversation--active {
+    background: color-mix(in srgb, var(--text) 12%, transparent);
+    font-weight: 600;
+}
+
+/* Верхняя строка боковой панели */
+.sidebar__topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+/* Кнопки сворачивания и повторного открытия */
+.sidebar__collapse,
+.sidebar-toggle {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    flex: 0 0 36px;
+    padding: 0;
+    color: var(--text);
+    background: transparent;
+    border: 1px solid var(--header-border);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 23px;
+}
+
+.sidebar__collapse:hover,
+.sidebar-toggle:hover {
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+    border-color: var(--header-border);
+}
+
+/* Кнопка возвращения скрытой панели */
+.sidebar-toggle {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 999;
+    background: var(--background);
+    border-color: var(--header-border);
+}
+
+/* Свёрнутая панель не занимает место в раскладке */
+.app-layout--sidebar-closed .sidebar {
+    display: none;
+}
+
+/* Затемнение мобильного фона */
+.sidebar-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    padding: 0;
+    border: 0;
+    background: rgb(0 0 0 / 45%);
+    cursor: pointer;
+}
+
+@media (max-width: 768px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1001;
+        width: min(300px, 85vw);
+        height: 100dvh;
+        flex: none;
+        box-shadow: 8px 0 32px rgb(0 0 0 / 18%);
+    }
+
+    .app-layout--sidebar-open .sidebar-backdrop {
+        display: block;
+    }
+
+    .sidebar-toggle {
+        z-index: 999;
+    }
+}
+
+.sidebar__actions {
+    position: relative;
+    flex: 0 0 32px;
+}
+
+.sidebar__more {
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 23px;
+    line-height: 1;
+    opacity: 0.65;
+}
+
+.sidebar__item:hover .sidebar__more,
+.sidebar__more:focus-visible,
+.sidebar__more[aria-expanded="true"] {
+    opacity: 1;
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.sidebar__menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 20;
+    min-width: 160px;
+    padding: 5px;
+    background: var(--background);
+    color: var(--text);
+    border: 1px solid var(--header-border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
+}
+
+.sidebar__menu button {
+    display: block;
+    width: 100%;
+    padding: 9px 10px;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    text-align: left;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.sidebar__menu button:hover {
+    background: color-mix(in srgb, var(--text) 8%, transparent);
+}
+
+.sidebar__menu .sidebar__menu-delete {
+    color: #dc2626;
+}
+
+.sidebar__rename-form {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+}
+
+.sidebar__rename-input {
+    flex: 1;
+    min-width: 0;
+    width: 0;
+    padding: 7px 8px;
+    color: var(--text);
+    background: var(--background);
+    border: 1px solid var(--header-border);
+    border-radius: 7px;
+    outline: none;
+}
+
+.sidebar__rename-input:focus {
+    border-color: var(--text);
+}
+
+.sidebar__rename-form button {
+    flex: 0 0 28px;
+    width: 28px;
+    height: 32px;
+    padding: 0;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.sidebar__rename-form button:hover {
+    background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.sidebar-toggle span {
+    display: block;
+    transform: translateY(-2px);
+}
