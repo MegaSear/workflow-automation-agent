@@ -5,22 +5,15 @@
 ### 1. Clone the repository
 
 ```bash
+
 git clone <repository-url>
 cd <repository-name>
 ```
 
-### 2. Create and Activate a virtual environment
+### 2. Installation
 
 ```bash
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-```
-
-### 4. Install dependencies
-
-```bash
-pip install -r requirements.txt
-pip install -e .
+uv sync
 ```
 
 ### 5. Configure environment variables
@@ -38,10 +31,11 @@ If `.env.example` is not provided, create `.env` manually and add the environmen
 ### 6. Run the application
 
 ```bash
-python run.py
+uv run python run.py
 ```
 
 ### 7. Shutdown
 Press Ctrl+C in the terminal running the application.
 
-## Описание репозитория 
+## Описание репозитория  
+Репозиторий в разработке 🛠️
