@@ -1,41 +1,57 @@
-# Workflow automation agent
+## Требования
 
-## Installation
+- Windows (скрипт запуска `run.py` использует `taskkill` и `npm.cmd`)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (PostgreSQL и песочница агента)
+- [Node.js](https://nodejs.org/) (фронтенд)
+- [uv](https://docs.astral.sh/uv/) (менеджер зависимостей Python)
 
-### 1. Clone the repository
+## Установка
 
-```bash
+### 1. Клонировать репозиторий
 
-git clone <repository-url>
-cd <repository-name>
+```powershell
+git clone https://github.com/MegaSear/workflow-automation-agent.git
+cd workflow-automation-agent
 ```
 
-### 2. Installation
+### 2. Установить зависимости Python
 
-```bash
+```powershell
 uv sync
 ```
 
-### 5. Configure environment variables
-Create a `.env` file in the project root by copying `.env.example`:
+uv сам создаст `.venv` и поставит версии из `uv.lock`.
 
-```bash
+### 3. Установить зависимости фронтенда
+
+```powershell
+cd frontend
+npm install
+cd ..
+```
+
+### 4. Настроить переменные окружения
+
+```powershell
 copy .env.example .env
 ```
 
-Open `.env` and fill in the required values, such as your LLM API key, base URL, and model name.
+Открой `.env` и заполни `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` и `JWT_SECRET_KEY`.
 
-If `.env.example` is not provided, create `.env` manually and add the environment variables required by the application.
+### 5. Запустить
 
-
-### 6. Run the application
-
-```bash
+```powershell
 uv run python run.py
 ```
 
-### 7. Shutdown
-Press Ctrl+C in the terminal running the application.
+Остановить: `Ctrl+C` в терминале.
 
-## Описание репозитория  
+## Тесты
+
+```powershell
+uv run pytest
+```
+
+### 6. Описание репозитория  
+
 Репозиторий в разработке 🛠️
