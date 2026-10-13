@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { sendMessageRequest } from "../api/chat";
 import {
     getConversations,
@@ -20,50 +20,50 @@ export function useChat(token, logout) {
         return data;
     }
 
-    const loadConversation = useCallback(async () => {
-        try {
-            const data = await getConversations(token);
-            setConversations(data);
-
-            if (data.length === 0) {
-                setConversationId(null);
-                setMessages([]);
-                setInput("");
-                return;
-            }
-
-            const conversation = data[0];
-
-            const history = await getConversationMessages(
-                conversation.id,
-                token
-            );
-
-            setConversationId(conversation.id);
-            setMessages(history);
-        } catch (error) {
-            if (error.status === 401) {
-                logout();
-                return;
-            }
-
-            console.error("Не удалось загрузить диалоги:", error);
-        }
-    }, [token, logout]);
-
     useEffect(() => {
-        if (!token) {
-            setInput("");
-            setMessages([]);
-            setConversationId(null);
-            setConversations([]);
-            setLoading(false);
-            return;
-        }
+        let cancelled = false;
 
-        loadConversation();
-    }, [token, loadConversation]);
+        getConversations(token)
+            .then(async (data) => {
+                if (cancelled) return;
 
+                setConversations(data);
+
+                if (data.length === 0) {
+                    setConversationId(null);
+                    setMessages([]);
+                    setInput("");
+                    return;
+                }
+
+                const conversation = data[0];
+
+                const history = await getConversationMessages(
+                    conversation.id,
+                    token
+                );
+
+                if (cancelled) return;
+
+                setConversationId(conversation.id);
+                setMessages(history);
+            })
+            .catch((error) => {
+                if (cancelled) return;
+
+                if (error.status === 401) {
+                    logout();
+                    return;
+                }
+
+                console.error("Не удалось загрузить диалоги:", error);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [token, logout]);
+    
     async function openConversation(id) {
         if (id === conversationId || loading) {
             return;

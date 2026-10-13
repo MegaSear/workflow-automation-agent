@@ -8,6 +8,7 @@ export default function AuthForm({
     password,
     setPassword,
     authError,
+    setAuthError,
     handleAuth,
 }) {
     return (
