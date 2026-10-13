@@ -4,11 +4,25 @@ import subprocess
 
 SANDBOX_IMAGE = "react-agent-sandbox:latest"
 CONTAINER_WORKDIR = "/workspace"
-WORKSPACE_VOLUME = "react-agent-workspace"
-
+WORKSPACE_VOLUME_PREFIX = "react-agent-workspace-user-"
 
 class SandboxExecutor:
-    def __init__(self, timeout: int = 10):
+    def __init__(self,
+                 workspace_id: int,
+                 timeout: int = 10):
+        if (
+            isinstance(workspace_id, bool)
+            or not isinstance(workspace_id, int)
+            or workspace_id <= 0
+        ):
+            raise ValueError(
+                "workspace_id must be a positive integer"
+            )
+
+        self._workspace_volume = (
+            f"{WORKSPACE_VOLUME_PREFIX}{workspace_id}"
+        )
+
         self._timeout = timeout
 
     def _run(self, *args: str) -> dict:
@@ -23,7 +37,7 @@ class SandboxExecutor:
             "--cpus=0.5",
             "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
             "--mount",
-            f"type=volume,source={WORKSPACE_VOLUME},target={CONTAINER_WORKDIR}",
+            f"type=volume,source={self._workspace_volume},target={CONTAINER_WORKDIR}",
             "--workdir", CONTAINER_WORKDIR,
             SANDBOX_IMAGE,
             *args,

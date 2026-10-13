@@ -1,5 +1,5 @@
 # src/my_app/config.py
-from pydantic import computed_field
+from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
 
@@ -23,7 +23,30 @@ class Settings(BaseSettings):
     JWT_SECRET_KEY: str 
     JWT_ALGORITHM: str = "HS256" 
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    
+
+    @field_validator("JWT_SECRET_KEY")
+    @classmethod
+    def validate_jwt_secret_key(cls, value: str) -> str:
+        """Reject short or obviously weak JWT signing secrets."""
+        if len(value.encode("utf-8")) < 32:
+            raise ValueError(
+                "JWT_SECRET_KEY must be at least 32 bytes long. "
+                "Generate a random value using Python secrets."
+            )
+
+        if any(character.isspace() for character in value):
+            raise ValueError(
+                "JWT_SECRET_KEY must not contain whitespace"
+            )
+
+        if len(set(value)) < 8:
+            raise ValueError(
+                "JWT_SECRET_KEY is too repetitive. "
+                "Use a cryptographically random secret."
+            )
+
+        return value
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

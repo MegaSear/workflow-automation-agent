@@ -187,9 +187,11 @@ def test_chat_creates_conversation_and_saves_messages(
     monkeypatch,
 ):
     """A new chat creates a conversation and saves both messages."""
-    def fake_run(history, user_input):
+    def fake_run(history, user_input, *, workspace_id):
         assert history == []
         assert user_input == "Hello"
+        assert workspace_id == test_user.id
+
         return "Hello! How can I help?"
 
     monkeypatch.setattr(server.harness, "run", fake_run)
@@ -264,9 +266,11 @@ def test_chat_passes_existing_history_to_agent(
         },
     ]
 
-    def fake_run(history, user_input):
+    def fake_run(history, user_input, *, workspace_id):
         assert history == expected_history
         assert user_input == "What is my name?"
+        assert workspace_id == test_user.id
+
         return "Your name is Alex."
 
     monkeypatch.setattr(server.harness, "run", fake_run)

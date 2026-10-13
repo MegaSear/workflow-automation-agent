@@ -13,6 +13,8 @@ class Harness:
         self,
         history: list[dict],
         user_input: str,
+        *,
+        workspace_id: int,
     ) -> str:
         messages = self._agent.build_messages(
             history=history,
@@ -69,7 +71,9 @@ class Harness:
                             "Tool arguments must be a JSON object"
                         )
 
-                    result = execute_tool(name, arguments)
+                    result = execute_tool(name, 
+                                          arguments,
+                                          workspace_id=workspace_id,)
                     content = str(result)
 
                 except Exception as error:

@@ -338,6 +338,7 @@ def chat(
     response = harness.run(
         history=history,
         user_input=request.message,
+        workspace_id=user.id,
     )
 
     assistant_message = Message(

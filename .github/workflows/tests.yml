@@ -2,7 +2,7 @@ name: tests
 on: [push, pull_request]
 
 jobs:
-  backend:
+  backend-unit:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -10,7 +10,22 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --locked
-      - run: uv run pytest --cov=react_agent
+      - run: uv run pytest tests/unit --cov=react_agent
+
+  backend-integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+      - run: uv sync --locked
+      - name: Build sandbox image
+        run: docker build -t react-agent-sandbox:latest ./sandbox
+
+      - name: Run integration tests
+        run: uv run pytest tests/integration/ -v
+
 
   frontend:
     runs-on: windows-latest

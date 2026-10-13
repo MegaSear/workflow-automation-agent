@@ -10,8 +10,6 @@ from urllib.request import (
     build_opener,
 )
 
-sandbox = SandboxExecutor()
-
 def get_current_time() -> str:
     """Возвращает текущее локальное время сервера."""
     result = datetime.now().astimezone().isoformat(
@@ -20,7 +18,7 @@ def get_current_time() -> str:
     print(f"[TOOL] get_current_time -> {result}")
     return result
 
-def git_status() -> str:
+def git_status(sandbox: SandboxExecutor) -> str:
     result = sandbox.git_status()
     print(f"[TOOL] git_status -> stdout: {result['stdout'].strip() or '(no output)'}")
     print(f"[TOOL] git_status -> stderr: {result.get('stderr', '(empty)').strip() or '(empty)'}")
@@ -29,12 +27,12 @@ def git_status() -> str:
     return str(result)
 
 
-def create_file(path: str, content: str) -> str:
+def create_file(sandbox: SandboxExecutor, path: str, content: str) -> str:
     result = sandbox.create_file(path, content)
     print(f"[TOOL] create_file -> {result}")
     return str(result)
 
-def read_file(path: str) -> str:
+def read_file(sandbox: SandboxExecutor, path: str) -> str:
     result = sandbox.read_file(path)
     print(f"[TOOL] read_file -> {result}")
     return str(result)
@@ -185,15 +183,28 @@ TOOL_HANDLERS = {
     "read_file": read_file,
 }
 
+SANDBOX_TOOL_NAMES = frozenset({
+    "git_status",
+    "create_file",
+    "read_file",
+})
 
-def execute_tool(name: str, arguments: dict) -> str:
+def execute_tool(name: str, arguments: dict, *, workspace_id: int | None = None) -> str:
     handler = TOOL_HANDLERS.get(name)
 
     if handler is None:
         raise ValueError(f"Unknown tool: {name}")
-
+    
     if not isinstance(arguments, dict):
         raise ValueError("Tool arguments must be a dictionary")
-
+    
+    if name in SANDBOX_TOOL_NAMES:
+        if workspace_id is None:
+            raise ValueError(
+                "workspace_id is required for sandbox tools"
+            )
+        sandbox = SandboxExecutor(workspace_id=workspace_id)
+        return handler(sandbox, **arguments)
+    
     return handler(**arguments)
 
