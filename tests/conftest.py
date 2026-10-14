@@ -10,7 +10,6 @@ os.environ.update({
     "POSTGRES_PASSWORD": "test",
     "POSTGRES_PORT": "5432",
     "JWT_SECRET_KEY": "test-secret-key-for-tests-only-0123456789",
-    "SANDBOX_REPO_PATH": "/tmp/sandbox-test",
 })
 
 

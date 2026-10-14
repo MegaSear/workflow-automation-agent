@@ -1,4 +1,3 @@
-# src/my_app/config.py
 from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
@@ -18,11 +17,12 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_HOST: str = "localhost"
 
-    DEBUG: bool = False
+    HTTP_ALLOWED_HOSTS: str = "api.github.com,api.open-meteo.com"
 
     JWT_SECRET_KEY: str 
     JWT_ALGORITHM: str = "HS256" 
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod
