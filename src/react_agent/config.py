@@ -1,7 +1,9 @@
 from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
+from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 class Settings(BaseSettings):
     LLM_API_KEY: str
@@ -17,12 +19,16 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int
     POSTGRES_HOST: str = "localhost"
 
-    HTTP_ALLOWED_HOSTS: str = "api.github.com,api.open-meteo.com"
-
     JWT_SECRET_KEY: str 
     JWT_ALGORITHM: str = "HS256" 
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     
+    
+    ALLOWED_HOSTS_FILE: Path = PROJECT_ROOT / "config" / "http_allowed_hosts.txt"
+
+    ALLOWED_PORTS: set[int] = {443}
+    REQUEST_TIMEOUT: int = 10
+    MAX_BODY_BYTES: int = 100_000
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod

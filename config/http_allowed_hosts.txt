@@ -1,0 +1,2 @@
+api.github.com
+api.open-meteo.com

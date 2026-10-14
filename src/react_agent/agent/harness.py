@@ -1,7 +1,8 @@
 import json
 
 from react_agent.agent.agent import Agent
-from react_agent.agent.tools import TOOL_SCHEMAS, execute_tool
+from react_agent.agent.tools_compose import execute_tool
+from react_agent.agent.tool_schemas import TOOL_SCHEMAS
 
 
 class Harness:
