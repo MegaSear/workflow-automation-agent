@@ -21,6 +21,7 @@ from react_agent.db.models import Conversation, Message, User
 from react_agent.llm.client import LLMClient
 from react_agent.agent.harness import Harness
 from contextlib import asynccontextmanager
+from prometheus_fastapi_instrumentator import Instrumentator
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -30,6 +31,10 @@ async def lifespan(app: FastAPI):
 # App setup
 app = FastAPI(lifespan=lifespan)
 
+Instrumentator().instrument(app).expose(
+    app,
+    include_in_schema=False,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -325,6 +330,9 @@ def chat(
         content=request.message,
     )
 
+    conversation_id = conversation.id
+    user_id = user.id
+
     # Создаем историю сообщений для передачи в агент
     history = [
         {
@@ -334,15 +342,33 @@ def chat(
         for message in conversation.messages
     ]
 
+    db.rollback()
+
     # Запускаем агента
     response = harness.run(
         history=history,
         user_input=request.message,
-        workspace_id=user.id,
+        workspace_id=user_id,
     )
 
+    conversation = (
+        db.query(Conversation)
+        .filter(
+            Conversation.id == conversation_id,
+            Conversation.user_id == user_id,
+        )
+        .with_for_update()
+        .first()
+    )
+
+    if conversation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Conversation was deleted while agent was running",
+        )
+
     assistant_message = Message(
-        conversation_id=conversation.id,
+        conversation_id=conversation_id,
         role="assistant",
         content=response,
     )
@@ -365,5 +391,5 @@ def chat(
         ) from e
     return ChatResponse(
         response=response,
-        conversation_id=conversation.id,
+        conversation_id=conversation_id,
     )
