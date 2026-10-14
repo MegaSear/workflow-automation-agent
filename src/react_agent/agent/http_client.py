@@ -25,6 +25,9 @@ def get(url: str) -> str:
     except RuntimeError as exc:
         return f"Error: {exc}"
 
+    print(f"[HTTP] URL: {url}")
+    print(f"[HTTP] Endpoint: host={parsed.hostname!r}, port={parsed.port}, pinned_ip={_resolve_public_ip(parsed.hostname, parsed.port)}")
+
     # Фильтрация по доверенным хостам
     if parsed.hostname not in allowed_hosts:
         return "Error: host is not in the allowlist"

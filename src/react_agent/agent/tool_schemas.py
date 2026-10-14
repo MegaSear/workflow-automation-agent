@@ -1,5 +1,6 @@
-# Tool AllowList
+from react_agent.agent.http_client import _allowed_hosts
 
+# Tool AllowList
 TOOL_SCHEMAS = [
     {
         "type": "function",
@@ -53,9 +54,10 @@ TOOL_SCHEMAS = [
         "type": "function",
         "function": {
             "name": "http_get",
-            "description": "Выполнить HTTPS GET-запрос к публичному API из списка разрешённых "
-                "хостов, без следования редиректам. Запросы к другим хостам "
-                "отклоняются.",
+            "description": "Выполнить HTTPS GET-запрос к публичному API. "
+                f"Разрешённые хосты: {', '.join(sorted(_allowed_hosts()))}. "
+                "Запросы только по HTTPS, без следования редиректам. "
+                "Запросы к другим хостам отклоняются.",
             "parameters": {
                 "type": "object",
                 "properties": {

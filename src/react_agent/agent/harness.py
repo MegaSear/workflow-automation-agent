@@ -75,10 +75,13 @@ class Harness:
                     result = execute_tool(name, 
                                           arguments,
                                           workspace_id=workspace_id,)
-                    content = str(result)
-
+                    content = str(result)        
                 except Exception as error:
                     content = f"Tool error: {error}"
+
+                print(
+                    f"[HARNESS] Tool {name} result preview: {content[:100]!r}"
+                )
 
                 messages.append({
                     "role": "tool",

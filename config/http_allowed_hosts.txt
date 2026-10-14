@@ -1,2 +1,3 @@
 api.github.com
 api.open-meteo.com
+api.wttr.in

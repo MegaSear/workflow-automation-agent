@@ -31,9 +31,8 @@ def ensure_sandbox_image():
 def main():
     subprocess.run(["docker", "compose", "up", "-d", "--wait"], check=True)
     ensure_sandbox_image()
-    frontend = subprocess.Popen(["npm.cmd", "run", "dev"], cwd="frontend")
     server   = subprocess.Popen([sys.executable, "-m", "uvicorn", "react_agent.api.server:app", "--reload"])
-
+    frontend = subprocess.Popen(["npm.cmd", "run", "dev"], cwd="frontend")
     try:
         server.wait()
     except KeyboardInterrupt:
