@@ -1,10 +1,9 @@
 ## Требования
 
-- Windows (скрипт запуска `run.py` использует `taskkill` и `npm.cmd`)
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (PostgreSQL и песочница агента)
-- [Node.js](https://nodejs.org/) (фронтенд)
-- [uv](https://docs.astral.sh/uv/) (менеджер зависимостей Python)
-
+- OS: Windows
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) - запуск PostgreSQL и песочницы агента
+- [Node.js](https://nodejs.org/) - запуск фронтенда
+- [uv](https://docs.astral.sh/uv/) - управление зависимостями и виртуальным окружением Python  
 ## Установка
 
 ### 1. Клонировать репозиторий
@@ -20,7 +19,7 @@ cd workflow-automation-agent
 uv sync
 ```
 
-uv сам создаст `.venv` и поставит версии из `uv.lock`.
+uv создаст виртуальное окружение `.venv` и установит зависимости из `uv.lock`.
 
 ### 3. Установить зависимости фронтенда
 
@@ -35,8 +34,7 @@ cd ..
 ```powershell
 copy .env.example .env
 ```
-
-Открой `.env` и заполни `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` и `JWT_SECRET_KEY`.
+Заполнить в `.env` параметры `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL` и `JWT_SECRET_KEY`. JWT_SECRET_KEY должен быть не короче 32 байт.
 
 ### 5. Запустить
 
