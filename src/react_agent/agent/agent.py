@@ -1,6 +1,7 @@
 from react_agent.llm.client import LLMClient
 from react_agent.llm.prompts import load_system_prompt, load_tools_prompt
 
+
 class Agent:
     def __init__(self, llm: LLMClient):
         self._llm = llm
@@ -15,8 +16,7 @@ class Agent:
         return [
             {
                 "role": "system",
-                "content": system_prompt
-                + "\n\n" + tools_prompt,
+                "content": system_prompt + "\n\n" + tools_prompt,
             },
             *history,
             {

@@ -10,7 +10,6 @@ from react_agent.config import settings
 from react_agent.db.database import get_db
 from react_agent.db.models import User
 
-
 password_hash = PasswordHash.recommended()
 security = HTTPBearer()
 
@@ -78,7 +77,7 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token",
         )
-    
+
     user = db.get(User, int(user_id))
 
     if user is None:
@@ -86,5 +85,5 @@ def get_current_user(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
         )
-    
+
     return user

@@ -14,6 +14,8 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: uv sync --locked
+      - name: Lint with Ruff
+        run: uv run ruff check .
       - run: uv run pytest tests/unit --cov=react_agent
 
   backend-integration:
@@ -24,6 +26,8 @@ jobs:
         with:
           python-version: "3.12"
       - run: uv sync --locked
+      - name: Lint with Ruff
+        run: uv run ruff check .
       - name: Build sandbox image
         run: docker build -t react-agent-sandbox:latest ./sandbox
 

@@ -3,11 +3,11 @@ import { useEffect, useState } from "react";
 import ChatWindow from "./ChatWindow";
 import SideBar from "./SideBar";
 import { useChat } from "../hooks/useChat";
-
+import { useIntegrations } from "../hooks/useIntegrations";
 
 export default function ChatApp({ token, logout, darkMode, toggleTheme }) {
     const chat = useChat(token, logout);
-
+    const integrations = useIntegrations(token, logout);
     const [sidebarOpen, setSidebarOpen] = useState(
         () => !window.matchMedia("(max-width: 768px)").matches
     );
@@ -87,6 +87,7 @@ export default function ChatApp({ token, logout, darkMode, toggleTheme }) {
                 setInput={chat.setInput}
                 handleKeyDown={chat.handleKeyDown}
                 sendMessage={chat.sendMessage}
+                integrations={integrations}
             />
         </div>
     );

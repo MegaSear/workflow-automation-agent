@@ -158,3 +158,241 @@
     opacity: 0.35;
     cursor: not-allowed;
 }
+
+
+
+/* ===== Интеграции ===== */
+
+.integrations-wrapper {
+    position: relative;
+    flex: 0 0 auto;
+    align-self: flex-end;
+}
+
+.integrations {
+    position: relative;
+}
+
+.integrations-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 42px;
+    padding: 0 13px;
+    border: 1px solid var(--input-border);
+    border-radius: 12px;
+    background: var(--background);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        border-color 160ms ease,
+        background 160ms ease,
+        transform 160ms ease;
+}
+
+.integrations-trigger:hover {
+    border-color: var(--text);
+}
+
+.integrations-trigger:active {
+    transform: scale(0.98);
+}
+
+.integrations-trigger:focus-visible,
+.integration-action:focus-visible,
+.jira-submit:focus-visible {
+    outline: 2px solid var(--text);
+    outline-offset: 3px;
+}
+
+.integrations-trigger-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
+    background: transparent;
+    font-size: 18px;
+    line-height: 1;
+}
+
+.integrations-chevron {
+    margin-left: 2px;
+    color: var(--secondary-text);
+    font-size: 11px;
+}
+
+/* Выпадающее меню */
+
+.integrations-dropdown {
+    position: absolute;
+    z-index: 100;
+    left: 0;
+    bottom: calc(100% + 10px);
+
+    box-sizing: border-box;
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    max-height: min(70vh, 520px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    padding: 8px;
+    border: 1px solid var(--input-border);
+    border-radius: 16px;
+
+    /* Непрозрачная поверхность в цвет текущей темы */
+    background-color: var(--background);
+    color: var(--text);
+
+    box-shadow:
+        0 16px 48px rgb(0 0 0 / 20%),
+        0 2px 8px rgb(0 0 0 / 8%);
+}
+
+.integrations-heading {
+    padding: 10px 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+.integration-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 13px 10px;
+    border-top: 1px solid var(--input-border);
+    border-radius: 8px;
+}
+
+.integration-info {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 5px;
+    min-width: 0;
+}
+
+.integration-info strong {
+    font-size: 13px;
+    font-weight: 550;
+}
+
+.integration-info span,
+.integration-muted {
+    color: var(--secondary-text);
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.integration-muted {
+    padding: 4px 10px 12px;
+}
+
+/* Кнопки действий */
+
+.integration-action {
+    flex-shrink: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--input-border);
+    border-radius: 9px;
+    background: transparent;
+    color: var(--text);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    transition:
+        background 150ms ease,
+        border-color 150ms ease;
+}
+
+.integration-action:hover:not(:disabled) {
+    background: var(--input-border);
+}
+
+.integration-action:disabled,
+.jira-submit:disabled {
+    opacity: 0.55;
+    cursor: wait;
+}
+
+/* Форма Jira */
+
+.jira-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 4px 4px 6px;
+    padding: 14px 6px 6px;
+    border-top: 1px solid var(--input-border);
+}
+
+.jira-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.jira-form input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 10px 11px;
+    border: 1px solid var(--input-border);
+    border-radius: 9px;
+    outline: none;
+    background: var(--background);
+    color: var(--text);
+    font: inherit;
+    font-size: 13px;
+}
+
+.jira-form input:focus {
+    border-color: var(--text);
+}
+
+.jira-submit {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--text);
+    border-radius: 9px;
+    background: var(--text);
+    color: var(--background);
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.jira-submit:disabled {
+    opacity: 0.55;
+}
+
+.integration-error {
+    margin: 8px 10px 10px;
+    color: #d94848;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 520px) {
+    .integrations-trigger {
+        gap: 6px;
+        min-height: 42px;
+        padding: 0 10px;
+        font-size: 12px;
+    }
+
+    .integrations-dropdown {
+        width: min(340px, calc(100vw - 24px));
+        max-width: calc(100vw - 24px);
+    }
+}

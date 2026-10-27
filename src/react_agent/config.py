@@ -1,34 +1,52 @@
+from pathlib import Path
+
 from pydantic import computed_field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from sqlalchemy.engine import URL
-from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
+
 class Settings(BaseSettings):
+    # Provider
     LLM_API_KEY: str
     LLM_BASE_URL: str
     LLM_MODEL: str
 
+    # FULLSTACK
+    FRONTEND_URL: str = "http://localhost:5173"
+
+    # PostgreSQL
     DATABASE_MODE: str = "compose"
     DATABASE_URL: str | None = None
-
     POSTGRES_DB: str
     POSTGRES_USER: str
     POSTGRES_PASSWORD: str
     POSTGRES_PORT: int
     POSTGRES_HOST: str = "localhost"
 
-    JWT_SECRET_KEY: str 
-    JWT_ALGORITHM: str = "HS256" 
+    # JWT
+    JWT_SECRET_KEY: str
+    JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
-    
-    
-    ALLOWED_HOSTS_FILE: Path = PROJECT_ROOT / "config" / "http_allowed_hosts.txt"
 
+    # HTTP
+    ALLOWED_HOSTS_FILE: Path = PROJECT_ROOT / "config" / "http_allowed_hosts.txt"
     ALLOWED_PORTS: set[int] = {443}
     REQUEST_TIMEOUT: int = 10
     MAX_BODY_BYTES: int = 100_000
+
+    # Google Calendar
+    GOOGLE_CALENDAR_CREDENTIALS_FILE: Path = (
+        PROJECT_ROOT / "secrets" / "google_web_credentials.json"
+    )
+    GOOGLE_CALENDAR_TOKEN_FILE: Path = PROJECT_ROOT / "secrets" / "google_token.json"
+    GOOGLE_CALENDAR_REDIRECT_URI: str = (
+        "http://localhost:8000/api/integrations/google_calendar/callback"
+    )
+
+    # ENCRYPT CREDENTIALS
+    INTEGRATION_ENCRYPTION_KEY: str | None = None
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod
@@ -41,9 +59,7 @@ class Settings(BaseSettings):
             )
 
         if any(character.isspace() for character in value):
-            raise ValueError(
-                "JWT_SECRET_KEY must not contain whitespace"
-            )
+            raise ValueError("JWT_SECRET_KEY must not contain whitespace")
 
         if len(set(value)) < 8:
             raise ValueError(

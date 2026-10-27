@@ -19,8 +19,10 @@ from datetime import datetime, timedelta, timezone
 
 from react_agent.db.models import User
 from react_agent.auth.auth import (
-    create_access_token, get_current_user,
-    hash_password, verify_password,
+    create_access_token,
+    get_current_user,
+    hash_password,
+    verify_password,
 )
 from react_agent.config import settings
 
@@ -28,12 +30,11 @@ from react_agent.config import settings
 USER_IDS = [1, 2, 3]
 UNKNOWN_USER_ID = 999
 
+
 @pytest.fixture
 def users():
-    return [
-        Mock(spec=User, id=user_id) 
-        for user_id in USER_IDS
-    ]
+    return [Mock(spec=User, id=user_id) for user_id in USER_IDS]
+
 
 @pytest.fixture
 def db(users):
@@ -41,6 +42,7 @@ def db(users):
     users_by_id = {user.id: user for user in users}
     db.get.side_effect = lambda _, user_id: users_by_id.get(user_id)
     return db
+
 
 def create_credentials(user_id: int):
     return HTTPAuthorizationCredentials(
@@ -51,7 +53,7 @@ def create_credentials(user_id: int):
 
 @pytest.mark.parametrize("user_id", USER_IDS)
 def test_get_current_user_returns_correct_user(user_id, users, db):
-    """ 
+    """
     Проверка на сценарий: возвращается правильный юзер
     """
 
@@ -62,8 +64,10 @@ def test_get_current_user_returns_correct_user(user_id, users, db):
 
     expected_user = next(user for user in users if user.id == user_id)
 
-    assert result is expected_user                # Тот ли объект юзера возвращается
-    db.get.assert_called_once_with(User, user_id) # Внутри функции get_current_user вызывается db.get с корректными аргументами
+    assert result is expected_user  # Тот ли объект юзера возвращается
+    db.get.assert_called_once_with(
+        User, user_id
+    )  # Внутри функции get_current_user вызывается db.get с корректными аргументами
 
 
 def test_get_current_user_raises_401_if_user_not_found(db):
@@ -108,6 +112,7 @@ def test_get_current_user_rejects_token_without_sub(db):
     assert exc_info.value.detail == "Invalid token"
     db.get.assert_not_called()
 
+
 def test_get_current_user_rejects_expired_token(db):
     """
     Проверка на сценарий: истекший токен
@@ -132,6 +137,7 @@ def test_get_current_user_rejects_expired_token(db):
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert exc_info.value.detail == "Invalid or expired token"
     db.get.assert_not_called()
+
 
 @pytest.mark.parametrize(
     "sub",
@@ -188,6 +194,7 @@ def test_get_current_user_rejects_invalid_signature(db):
     assert exc_info.value.status_code == status.HTTP_401_UNAUTHORIZED
     assert exc_info.value.detail == "Invalid or expired token"
     db.get.assert_not_called()
+
 
 def test_get_current_user_rejects_token_without_exp(db):
     """

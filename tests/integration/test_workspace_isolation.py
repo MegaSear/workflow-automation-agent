@@ -40,15 +40,10 @@ def require_docker_image() -> None:
 
 def get_fresh_workspace_ids() -> tuple[int, int]:
     for _ in range(10):
-        first_id = 1_000_000_000 + secrets.randbelow(
-            1_000_000_000
-        )
+        first_id = 1_000_000_000 + secrets.randbelow(1_000_000_000)
         ids = (first_id, first_id + 1)
 
-        volumes = [
-            f"{WORKSPACE_VOLUME_PREFIX}{workspace_id}"
-            for workspace_id in ids
-        ]
+        volumes = [f"{WORKSPACE_VOLUME_PREFIX}{workspace_id}" for workspace_id in ids]
 
         if all(
             docker_command("volume", "inspect", volume).returncode != 0

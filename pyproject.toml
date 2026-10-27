@@ -18,6 +18,11 @@ dependencies = [
     "pyjwt>=2.15.1",
     "sqlalchemy>=2.0.54",
     "uvicorn>=0.54.0",
+    "httpx>=0.28.0",
+    "google-api-python-client>=2.0.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.0",
+    "cryptography>=44.0.0",
 ]
 
 [tool.setuptools.packages.find]
@@ -28,6 +33,9 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
 
 [tool.coverage.run]
 omit = ["*/__init__.py"]

@@ -51,10 +51,7 @@ def test_http_get_rejects_http_url():
     ],
 )
 def test_http_get_rejects_unsupported_or_invalid_url(url):
-    assert (
-        http_get(url)
-        == "Error: only HTTPS URLs without credentials are allowed"
-    )
+    assert http_get(url) == "Error: only HTTPS URLs without credentials are allowed"
 
 
 def test_http_get_rejects_unlisted_host_before_dns():

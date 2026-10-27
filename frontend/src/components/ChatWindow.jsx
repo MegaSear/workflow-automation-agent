@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import IntegrationsMenu from "./IntegrationsMenu";
 
 export default function ChatWindow({
     darkMode,
@@ -10,6 +11,7 @@ export default function ChatWindow({
     setInput,
     handleKeyDown,
     sendMessage,
+    integrations,
 }) {
     const textareaRef = useRef(null);
     const messagesEndRef = useRef(null);
@@ -83,6 +85,7 @@ export default function ChatWindow({
         </main>
 
         <footer className="input-area">
+            <IntegrationsMenu {...integrations} />
             <textarea
                 ref={textareaRef}
                 rows={1}
@@ -90,7 +93,6 @@ export default function ChatWindow({
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Введите сообщение..."
-                disabled={loading}
                 aria-label="Введите сообщение"
                 className="message-input"
             />

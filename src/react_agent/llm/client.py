@@ -1,6 +1,7 @@
 from openai import OpenAI
 from react_agent.config import settings
 
+
 class LLMClient:
     def __init__(self):
         self._client = OpenAI(
@@ -10,14 +11,14 @@ class LLMClient:
         self._model = settings.LLM_MODEL
 
     def generate(
-            self, 
-            messages: list[dict], 
-            tools: list[dict] | None = None,
+        self,
+        messages: list[dict],
+        tools: list[dict] | None = None,
     ):
         request = {
-                    "model": self._model,
-                    "messages": messages,
-                }
+            "model": self._model,
+            "messages": messages,
+        }
         if tools:
             request["tools"] = tools
             request["tool_choice"] = "auto"

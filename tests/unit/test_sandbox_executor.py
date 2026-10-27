@@ -31,15 +31,11 @@ def test_different_workspaces_use_different_volumes(monkeypatch):
     mount_2 = commands[1][commands[1].index("--mount") + 1]
 
     assert mount_1 == (
-        "type=volume,"
-        "source=react-agent-workspace-user-1,"
-        "target=/workspace"
+        "type=volume,source=react-agent-workspace-user-1,target=/workspace"
     )
 
     assert mount_2 == (
-        "type=volume,"
-        "source=react-agent-workspace-user-2,"
-        "target=/workspace"
+        "type=volume,source=react-agent-workspace-user-2,target=/workspace"
     )
 
     assert mount_1 != mount_2

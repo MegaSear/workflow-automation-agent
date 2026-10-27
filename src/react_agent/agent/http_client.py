@@ -1,8 +1,9 @@
+import http.client
 import ipaddress
 import socket
-import http.client
-from react_agent.config import settings
 from urllib.parse import urlsplit
+
+from react_agent.config import settings
 
 
 def get(url: str) -> str:
@@ -40,7 +41,7 @@ def get(url: str) -> str:
     if port not in settings.ALLOWED_PORTS:
         return "Error: only port 443 is allowed"
 
-    # публичный IP
+    # public IP
     try:
         ip = _resolve_public_ip(parsed.hostname, port)
     except ValueError as exc:
@@ -52,9 +53,12 @@ def get(url: str) -> str:
     if parsed.query:
         path += "?" + parsed.query
 
+    # Logging
     print(f"[HTTP] URL: {url}")
-    print(f"[HTTP] Endpoint: host={parsed.hostname!r}, port={parsed.port}, pinned_ip={ip}")
-    
+    print(
+        f"[HTTP] Endpoint: host={parsed.hostname!r}, port={parsed.port}, pinned_ip={ip}"
+    )
+
     connection = _PinnedHTTPSConnection(
         parsed.hostname,
         pinned_ip=ip,
@@ -72,14 +76,8 @@ def get(url: str) -> str:
         # если слишком тяжёлый ответ
         body = response.read(settings.MAX_BODY_BYTES + 1)
         if len(body) > settings.MAX_BODY_BYTES:
-            return (
-                f"Error: response exceeds "
-                f"{settings.MAX_BODY_BYTES} bytes"
-            )
-        return (
-            f"HTTP {response.status}\n"
-            f"{body.decode('utf-8', errors='replace')}"
-        )
+            return f"Error: response exceeds {settings.MAX_BODY_BYTES} bytes"
+        return f"HTTP {response.status}\n{body.decode('utf-8', errors='replace')}"
     except (OSError, http.client.HTTPException) as exc:
         return f"Request failed: {exc}"
     finally:
@@ -93,10 +91,7 @@ def _allowed_hosts() -> set[str]:
     except OSError as exc:
         raise RuntimeError("HTTP allowlist file cannot be read") from exc
 
-    hosts = {
-        line.strip().lower()
-        for line in lines
-    }
+    hosts = {line.strip().lower() for line in lines}
     hosts.discard("")
 
     if not hosts:
@@ -104,22 +99,24 @@ def _allowed_hosts() -> set[str]:
 
     return hosts
 
-def _is_public_ip(
-    addr: ipaddress.IPv4Address | ipaddress.IPv6Address,
-) -> bool:
+
+def _is_public_ip(addr: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
     return addr.is_global
+
+
+def _parse_ip(raw: str):
+    """'fe80::1%eth0' -> fe80::1;  '::ffff:127.0.0.1' -> 127.0.0.1."""
+    addr = ipaddress.ip_address(raw.split("%")[0])
+    if addr.version == 6 and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
+    return addr
+
 
 def _resolve_public_ip(hostname: str, port: int) -> str:
     """Резолвит хост один раз и возвращает проверенный публичный IP."""
     infos = socket.getaddrinfo(hostname, port, type=socket.SOCK_STREAM)
 
-    addresses = []
-    for info in infos:
-        raw = info[4][0].split("%")[0]  # убрать zone id у IPv6
-        addr = ipaddress.ip_address(raw)
-        if addr.version == 6 and addr.ipv4_mapped is not None:
-            addr = addr.ipv4_mapped  # ::ffff:127.0.0.1 -> 127.0.0.1
-        addresses.append(addr)
+    addresses = [_parse_ip(info[4][0]) for info in infos]
 
     if not addresses:
         raise ValueError("host did not resolve")
@@ -128,8 +125,7 @@ def _resolve_public_ip(hostname: str, port: int) -> str:
     if not all(_is_public_ip(addr) for addr in addresses):
         raise ValueError("host resolves to a non-public IP")
 
-    return str(addresses[0]) # передаём только первый
-
+    return str(addresses[0])  # передаём только первый
 
 
 class _PinnedHTTPSConnection(http.client.HTTPSConnection):
@@ -144,10 +140,11 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
         self._pinned_ip = pinned_ip
 
     def connect(self):
-        sock = socket.create_connection((self._pinned_ip, self.port), self.timeout, self.source_address)
+        sock = socket.create_connection(
+            (self._pinned_ip, self.port), self.timeout, self.source_address
+        )
         try:
             self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
         except Exception:
             sock.close()
             raise
-

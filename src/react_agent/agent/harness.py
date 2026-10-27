@@ -1,16 +1,15 @@
 import json
-import json
-import logging
 from time import perf_counter
 
-from react_agent.agent.agent import Agent
-from react_agent.agent.tools_compose import execute_tool, TOOL_HANDLERS
-from react_agent.agent.tool_schemas import TOOL_SCHEMAS
+from sqlalchemy.orm import Session
 
+from react_agent.agent.agent import Agent
+from react_agent.agent.tool_schemas import TOOL_SCHEMAS
+from react_agent.agent.tools_compose import TOOL_HANDLERS, execute_tool
 from react_agent.observability.metrics import (
     AGENT_ACTIVE_RUNS,
-    AGENT_RUNS,
     AGENT_RUN_DURATION,
+    AGENT_RUNS,
     TOOL_CALLS,
     TOOL_DURATION,
 )
@@ -27,6 +26,8 @@ class Harness:
         user_input: str,
         *,
         workspace_id: int,
+        user_id: int,
+        db: Session,
     ) -> str:
 
         started = perf_counter()
@@ -35,10 +36,10 @@ class Harness:
 
         try:
             messages = self._agent.build_messages(
-                        history=history,
-                        user_input=user_input,
-                    )
-            
+                history=history,
+                user_input=user_input,
+            )
+
             # Несколько итераций: модель -> инструмент -> модель.
             for step in range(self._max_tool_rounds + 1):
                 message = self._agent.generate(
@@ -60,52 +61,49 @@ class Harness:
                     return "Превышен лимит вызовов инструментов."
 
                 # Сохраняем запрос модели на вызов инструментов.
-                messages.append({
-                    "role": "assistant",
-                    "content": message.content,
-                    "tool_calls": [
-                        {
-                            "id": call.id,
-                            "type": "function",
-                            "function": {
-                                "name": call.function.name,
-                                "arguments": call.function.arguments,
-                            },
-                        }
-                        for call in tool_calls
-                    ],
-                })
+                messages.append(
+                    {
+                        "role": "assistant",
+                        "content": message.content,
+                        "tool_calls": [
+                            {
+                                "id": call.id,
+                                "type": "function",
+                                "function": {
+                                    "name": call.function.name,
+                                    "arguments": call.function.arguments,
+                                },
+                            }
+                            for call in tool_calls
+                        ],
+                    }
+                )
 
                 # Исполняем каждый вызов через allowlist.
                 for call in tool_calls:
                     name = call.function.name
                     print(f"[HARNESS] Calling tool: {name}")
 
-                    metric_tool = (
-                        name if name in TOOL_HANDLERS
-                        else "unknown"
-                    )
+                    metric_tool = name if name in TOOL_HANDLERS else "unknown"
 
                     tool_started = perf_counter()
                     tool_status = "error"
 
                     try:
-                        arguments = json.loads(
-                            call.function.arguments or "{}"
-                        )
-
+                        arguments = json.loads(call.function.arguments or "{}")
+                        print(f"[HARNESS] Raw arguments for {name}: {arguments!r}")
                         if not isinstance(arguments, dict):
-                            raise ValueError(
-                                "Tool arguments must be a JSON object"
-                            )
+                            raise ValueError("Tool arguments must be a JSON object")
 
                         result = execute_tool(
-                            name, 
+                            name,
                             arguments,
-                            workspace_id=workspace_id
+                            workspace_id=workspace_id,
+                            user_id=user_id,
+                            db=db,
                         )
-                        content = str(result)  
-                        tool_status = "success"    
+                        content = str(result)
+                        tool_status = "success"
 
                     except Exception as error:
                         content = f"Tool error: {error}"
@@ -116,26 +114,22 @@ class Harness:
                             status=tool_status,
                         ).inc()
 
-                        TOOL_DURATION.observe(
-                            perf_counter() - tool_started
-                        )
-                        
-                    print(
-                        f"[HARNESS] Tool {name} result preview: {content[:100]!r}"
+                        TOOL_DURATION.observe(perf_counter() - tool_started)
+
+                    print(f"[HARNESS] Tool {name} result preview: {content[:100]!r}")
+
+                    messages.append(
+                        {
+                            "role": "tool",
+                            "tool_call_id": call.id,
+                            "content": content,
+                        }
                     )
 
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": call.id,
-                        "content": content,
-                    })
-
             return "Не удалось завершить выполнение."
-        
+
         finally:
             AGENT_ACTIVE_RUNS.dec()
 
             AGENT_RUNS.labels(status=run_status).inc()
-            AGENT_RUN_DURATION.observe(
-                perf_counter() - started
-            )
+            AGENT_RUN_DURATION.observe(perf_counter() - started)

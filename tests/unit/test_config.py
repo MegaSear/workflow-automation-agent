@@ -2,6 +2,7 @@ from react_agent.config import Settings
 import pytest
 from pydantic import ValidationError
 
+
 def test_database_url_uses_explicit_database_url():
     custom_url = "postgresql://user:password@localhost:5432/test_db"
 

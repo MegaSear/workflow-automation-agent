@@ -17,16 +17,12 @@ of network access and API credentials.
 import pytest
 
 from react_agent.api import server
-from react_agent.db.models import Conversation, Message, User
-from react_agent.auth.auth import hash_password
-
 from react_agent.api.server import app
-from react_agent.auth.auth import get_current_user
+from react_agent.auth.auth import get_current_user, hash_password
+from react_agent.db.models import Conversation, Message, User
 
-
-
-        
 # ==================== CONVERSATION ACCESS ====================
+
 
 def test_cannot_read_another_users_messages(
     client,
@@ -62,9 +58,7 @@ def test_cannot_read_another_users_messages(
     app.dependency_overrides[get_current_user] = lambda: test_user
 
     try:
-        response = client.get(
-            f"/api/conversations/{conversation.id}/messages"
-        )
+        response = client.get(f"/api/conversations/{conversation.id}/messages")
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 
@@ -135,9 +129,7 @@ def test_cannot_delete_another_users_conversation(
     app.dependency_overrides[get_current_user] = lambda: test_user
 
     try:
-        response = client.delete(
-            f"/api/conversations/{conversation_id}"
-        )
+        response = client.delete(f"/api/conversations/{conversation_id}")
     finally:
         app.dependency_overrides.pop(get_current_user, None)
 
@@ -153,6 +145,7 @@ def test_cannot_delete_another_users_conversation(
 
 # ==================== EMPTY MESSAGE ====================
 
+
 @pytest.mark.parametrize("message", ["", " ", "   ", "\t\n"])
 def test_chat_rejects_empty_message(
     authenticated_client,
@@ -161,6 +154,7 @@ def test_chat_rejects_empty_message(
     message,
 ):
     """Empty or whitespace-only messages must not reach the agent."""
+
     def fail_if_called(*args, **kwargs):
         pytest.fail("Agent must not run for an empty message")
 
@@ -180,6 +174,7 @@ def test_chat_rejects_empty_message(
 
 # ==================== CHAT AND MESSAGE PERSISTENCE ====================
 
+
 def test_chat_creates_conversation_and_saves_messages(
     authenticated_client,
     db_session,
@@ -187,11 +182,13 @@ def test_chat_creates_conversation_and_saves_messages(
     monkeypatch,
 ):
     """A new chat creates a conversation and saves both messages."""
-    def fake_run(history, user_input, *, workspace_id):
+
+    def fake_run(history, user_input, *, workspace_id, user_id, db):
         assert history == []
         assert user_input == "Hello"
         assert workspace_id == test_user.id
-
+        assert user_id == test_user.id
+        assert db is not None
         return "Hello! How can I help?"
 
     monkeypatch.setattr(server.harness, "run", fake_run)
@@ -207,9 +204,9 @@ def test_chat_creates_conversation_and_saves_messages(
     assert data["response"] == "Hello! How can I help?"
     assert isinstance(data["conversation_id"], int)
 
-    conversation = db_session.query(Conversation).filter_by(
-        id=data["conversation_id"]
-    ).first()
+    conversation = (
+        db_session.query(Conversation).filter_by(id=data["conversation_id"]).first()
+    )
 
     assert conversation is not None
     assert conversation.user_id == test_user.id
@@ -229,6 +226,7 @@ def test_chat_creates_conversation_and_saves_messages(
 
 # ==================== HISTORY PASSED TO AGENT ====================
 
+
 def test_chat_passes_existing_history_to_agent(
     authenticated_client,
     db_session,
@@ -244,18 +242,20 @@ def test_chat_passes_existing_history_to_agent(
     db_session.commit()
     db_session.refresh(conversation)
 
-    db_session.add_all([
-        Message(
-            conversation_id=conversation.id,
-            role="user",
-            content="My name is Alex",
-        ),
-        Message(
-            conversation_id=conversation.id,
-            role="assistant",
-            content="Nice to meet you, Alex!",
-        ),
-    ])
+    db_session.add_all(
+        [
+            Message(
+                conversation_id=conversation.id,
+                role="user",
+                content="My name is Alex",
+            ),
+            Message(
+                conversation_id=conversation.id,
+                role="assistant",
+                content="Nice to meet you, Alex!",
+            ),
+        ]
+    )
     db_session.commit()
 
     expected_history = [
@@ -266,11 +266,12 @@ def test_chat_passes_existing_history_to_agent(
         },
     ]
 
-    def fake_run(history, user_input, *, workspace_id):
+    def fake_run(history, user_input, *, workspace_id, user_id, db):
         assert history == expected_history
         assert user_input == "What is my name?"
         assert workspace_id == test_user.id
-
+        assert user_id == test_user.id
+        assert db is not None
         return "Your name is Alex."
 
     monkeypatch.setattr(server.harness, "run", fake_run)
@@ -290,6 +291,7 @@ def test_chat_passes_existing_history_to_agent(
 
 # ==================== REGISTRATION ====================
 
+
 def test_register_creates_user_and_returns_token(
     client,
     db_session,
@@ -305,9 +307,7 @@ def test_register_creates_user_and_returns_token(
     assert response.status_code == 201
     assert response.json()["access_token"]
 
-    user = db_session.query(User).filter_by(
-        email="new@example.com"
-    ).first()
+    user = db_session.query(User).filter_by(email="new@example.com").first()
 
     assert user is not None
     assert user.password_hash != "StrongPassword123!"
@@ -337,12 +337,11 @@ def test_register_rejects_duplicate_email(
     )
 
     assert response.status_code == 409
-    assert db_session.query(User).filter_by(
-        email="duplicate@example.com"
-    ).count() == 1
+    assert db_session.query(User).filter_by(email="duplicate@example.com").count() == 1
 
 
 # ==================== LOGIN ====================
+
 
 def test_login_with_valid_credentials_returns_token(
     client,
@@ -467,15 +466,11 @@ def test_delete_own_conversation(
 
     conversation_id = conversation.id
 
-    response = authenticated_client.delete(
-        f"/api/conversations/{conversation_id}"
-    )
+    response = authenticated_client.delete(f"/api/conversations/{conversation_id}")
 
     assert response.status_code == 204
 
-    deleted = db_session.query(Conversation).filter_by(
-        id=conversation_id
-    ).first()
+    deleted = db_session.query(Conversation).filter_by(id=conversation_id).first()
 
     assert deleted is None
 
@@ -485,7 +480,7 @@ def test_rename_conversation_strips_whitespace(
     db_session,
     test_user,
 ):
-    
+
     conversation = Conversation(
         user_id=test_user.id,
         title="Old title",
@@ -505,12 +500,13 @@ def test_rename_conversation_strips_whitespace(
     db_session.refresh(conversation)
     assert conversation.title == "New title"
 
+
 def test_rename_conversation_rejects_whitespace_only_title(
     authenticated_client,
     db_session,
     test_user,
 ):
-    
+
     conversation = Conversation(
         user_id=test_user.id,
         title="Original title",
@@ -545,9 +541,7 @@ def test_conversation_operations_return_404_for_missing_id(
             f"/api/conversations/{conversation_id}/messages"
         )
     elif method == "delete":
-        response = authenticated_client.delete(
-            f"/api/conversations/{conversation_id}"
-        )
+        response = authenticated_client.delete(f"/api/conversations/{conversation_id}")
     else:
         response = authenticated_client.patch(
             f"/api/conversations/{conversation_id}",
@@ -578,6 +572,7 @@ def test_chat_returns_404_for_missing_conversation(
     assert response.status_code == 404
     assert response.json()["detail"] == "Conversation not found"
 
+
 def test_get_messages_returns_messages(authenticated_client, db_session, test_user):
     conversation = Conversation(
         user_id=test_user.id,
@@ -586,18 +581,20 @@ def test_get_messages_returns_messages(authenticated_client, db_session, test_us
     db_session.add(conversation)
     db_session.flush()
 
-    db_session.add_all([
-        Message(
-            conversation_id=conversation.id,
-            role="user",
-            content="Привет",
-        ),
-        Message(
-            conversation_id=conversation.id,
-            role="assistant",
-            content="Привет! Чем помочь?",
-        ),
-    ])
+    db_session.add_all(
+        [
+            Message(
+                conversation_id=conversation.id,
+                role="user",
+                content="Привет",
+            ),
+            Message(
+                conversation_id=conversation.id,
+                role="assistant",
+                content="Привет! Чем помочь?",
+            ),
+        ]
+    )
     db_session.commit()
 
     response = authenticated_client.get(
