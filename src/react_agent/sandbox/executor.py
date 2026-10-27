@@ -1,6 +1,5 @@
 import subprocess
 
-
 SANDBOX_IMAGE = "react-agent-sandbox:latest"
 CONTAINER_WORKDIR = "/workspace"
 WORKSPACE_VOLUME_PREFIX = "react-agent-workspace-user-"

@@ -1,6 +1,5 @@
 from prometheus_client import Counter, Gauge, Histogram
 
-
 # Количество завершённых запусков агента.
 AGENT_RUNS = Counter(
     "agent_runs_total",

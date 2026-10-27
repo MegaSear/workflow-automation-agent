@@ -9,15 +9,14 @@ Covers:
 The database is mocked to isolate authentication logic from database access.
 """
 
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock
 
 import jwt
 import pytest
 from fastapi import HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
-from datetime import datetime, timedelta, timezone
 
-from react_agent.db.models import User
 from react_agent.auth.auth import (
     create_access_token,
     get_current_user,
@@ -25,7 +24,7 @@ from react_agent.auth.auth import (
     verify_password,
 )
 from react_agent.config import settings
-
+from react_agent.db.models import User
 
 USER_IDS = [1, 2, 3]
 UNKNOWN_USER_ID = 999

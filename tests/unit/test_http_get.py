@@ -1,9 +1,10 @@
 import socket
 from unittest.mock import MagicMock, patch
+
 import pytest
 
-from react_agent.agent.tools.http_get import http_get
 import react_agent.agent.http_client as http_client
+from react_agent.agent.tools.http_get import http_get
 
 
 @pytest.fixture
