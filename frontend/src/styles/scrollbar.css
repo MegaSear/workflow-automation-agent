@@ -1,32 +1,30 @@
 /* scrollbar.css */
 
 .chat::-webkit-scrollbar {
-    width: 8px;
+  width: 8px;
 }
 
 .chat::-webkit-scrollbar-track {
-    background: transparent;
+  background: transparent;
 }
 
 .chat::-webkit-scrollbar-thumb {
-    background: #aaa;
-    border-radius: 999px;
+  background: #aaa;
+  border-radius: 999px;
 }
 
 .chat::-webkit-scrollbar-thumb:hover {
-    background: #888;
+  background: #888;
 }
 
-
 body.dark .chat::-webkit-scrollbar-thumb {
-    background: #555;
+  background: #555;
 }
 
 body.dark .chat::-webkit-scrollbar-thumb:hover {
-    background: #777;
+  background: #777;
 }
 
-
 body.dark .chat {
-    scrollbar-color: #555 transparent;
+  scrollbar-color: #555 transparent;
 }
