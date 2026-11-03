@@ -17,14 +17,14 @@ import pytest
 from fastapi import HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials
 
-from react_agent.auth.auth import (
+from react_agent.backend.auth.auth import (
     create_access_token,
     get_current_user,
     hash_password,
     verify_password,
 )
-from react_agent.config import settings
-from react_agent.db.models import User
+from react_agent.backend.config import settings
+from react_agent.backend.db.models import User
 
 USER_IDS = [1, 2, 3]
 UNKNOWN_USER_ID = 999

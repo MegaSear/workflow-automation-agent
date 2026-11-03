@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "react-agent"
 version = "0.1.0"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 license = "Apache-2.0"
 dependencies = [
     "fastapi>=0.143.0",
@@ -20,10 +20,13 @@ dependencies = [
     "sqlalchemy>=2.0.54",
     "uvicorn>=0.54.0",
     "httpx>=0.28.0",
+    "httpx2>=2.10.0",
     "google-api-python-client>=2.0.0",
     "google-auth-httplib2>=0.2.0",
     "google-auth-oauthlib>=1.2.0",
     "cryptography>=44.0.0",
+    "pyyaml>=6.0.2",
+    "mcp[cli]>=2,<3",
 ]
 
 [tool.setuptools.packages.find]

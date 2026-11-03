@@ -1,7 +1,6 @@
-
 import pytest
 
-from react_agent.llm import prompts
+from react_agent.backend.llm import prompts
 
 
 def test_load_system_prompt_reads_file(monkeypatch, tmp_path):

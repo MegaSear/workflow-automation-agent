@@ -3,8 +3,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import react_agent.agent.http_client as http_client
-from react_agent.agent.tools.http_get import http_get
+import react_agent.backend.agent.http_client as http_client
+from react_agent.backend.mcp.servers.default.tools.http_get import http_get
 
 
 @pytest.fixture

@@ -11,6 +11,7 @@ os.environ.update(
         "POSTGRES_PASSWORD": "test",
         "POSTGRES_PORT": "5432",
         "JWT_SECRET_KEY": "test-secret-key-for-tests-only-0123456789",
+        "MY_DEFAULT_MCP_TOKEN": "test-internal-mcp-token",
     }
 )
 
@@ -21,10 +22,10 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from react_agent.api.server import app
-from react_agent.auth.auth import get_current_user
-from react_agent.db.database import Base, get_db
-from react_agent.db.models import User
+from react_agent.backend.api.server import app
+from react_agent.backend.auth.auth import get_current_user
+from react_agent.backend.db.database import Base, get_db
+from react_agent.backend.db.models import User
 
 
 @pytest.fixture

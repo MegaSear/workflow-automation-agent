@@ -2,9 +2,9 @@ from cryptography.fernet import Fernet
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
-from react_agent.config import settings
-from react_agent.db.models import Base, User, UserIntegration
-from react_agent.integrations.credentials import (
+from react_agent.backend.config import settings
+from react_agent.backend.db.models import Base, User, UserIntegration
+from react_agent.backend.integrations.credentials import (
     delete_credentials,
     get_credentials,
     save_credentials,

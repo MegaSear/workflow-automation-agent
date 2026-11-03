@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from react_agent.config import Settings
+from react_agent.backend.config import Settings
 
 
 def test_database_url_uses_explicit_database_url():

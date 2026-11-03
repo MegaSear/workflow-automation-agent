@@ -14,12 +14,44 @@ External LLM execution is mocked to keep tests deterministic and independent
 of network access and API credentials.
 """
 
-import pytest
+import json
+from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
-from react_agent.api import server
-from react_agent.api.server import app
-from react_agent.auth.auth import get_current_user, hash_password
-from react_agent.db.models import Conversation, Message, User
+import httpx
+import jwt
+import pytest
+from cryptography.fernet import Fernet
+from google.auth.exceptions import RefreshError
+from openai import APIConnectionError, APIStatusError, APITimeoutError
+from sqlalchemy import create_engine, inspect
+
+from react_agent.backend.api import server
+from react_agent.backend.api.server import app
+from react_agent.backend.auth.auth import get_current_user, hash_password
+from react_agent.backend.config import settings
+from react_agent.backend.db.models import Conversation, Message, User
+from react_agent.backend.integrations.credentials import (
+    get_credentials,
+    save_credentials,
+)
+
+
+def test_existing_messages_table_gets_tool_trace_column():
+    engine = create_engine("sqlite://")
+    try:
+        with engine.begin() as connection:
+            connection.exec_driver_sql(
+                "CREATE TABLE messages (id INTEGER PRIMARY KEY, content TEXT NOT NULL)"
+            )
+
+        server._ensure_message_tool_trace_column(engine)
+
+        columns = {column["name"] for column in inspect(engine).get_columns("messages")}
+        assert "tool_trace" in columns
+    finally:
+        engine.dispose()
+
 
 # ==================== CONVERSATION ACCESS ====================
 
@@ -183,12 +215,13 @@ def test_chat_creates_conversation_and_saves_messages(
 ):
     """A new chat creates a conversation and saves both messages."""
 
-    def fake_run(history, user_input, *, workspace_id, user_id, db):
+    def fake_run(history, user_input, *, workspace_id, user_id, db, tool_trace):
         assert history == []
         assert user_input == "Hello"
         assert workspace_id == test_user.id
         assert user_id == test_user.id
         assert db is not None
+        tool_trace.append({"name": "my_default__get_current_time", "status": "success"})
         return "Hello! How can I help?"
 
     monkeypatch.setattr(server.harness, "run", fake_run)
@@ -202,6 +235,9 @@ def test_chat_creates_conversation_and_saves_messages(
 
     data = response.json()
     assert data["response"] == "Hello! How can I help?"
+    assert data["tool_trace"] == [
+        {"name": "my_default__get_current_time", "status": "success"}
+    ]
     assert isinstance(data["conversation_id"], int)
 
     conversation = (
@@ -222,6 +258,192 @@ def test_chat_creates_conversation_and_saves_messages(
         ("user", "Hello"),
         ("assistant", "Hello! How can I help?"),
     ]
+    assert messages[1].tool_trace == [
+        {"name": "my_default__get_current_time", "status": "success"}
+    ]
+
+    history_response = authenticated_client.get(
+        f"/api/conversations/{conversation.id}/messages"
+    )
+    assert history_response.status_code == 200
+    assert history_response.json()[1]["tool_trace"] == [
+        {"name": "my_default__get_current_time", "status": "success"}
+    ]
+
+
+def test_chat_progress_returns_active_trace(
+    authenticated_client,
+    test_user,
+):
+    trace_id = uuid4()
+    trace = [{"name": "my_default__get_current_time", "status": "running"}]
+    key = str(trace_id)
+
+    with server._active_chat_traces_lock:
+        server._active_chat_traces[key] = (test_user.id, trace)
+
+    try:
+        response = authenticated_client.get(f"/api/chat/{trace_id}/progress")
+    finally:
+        with server._active_chat_traces_lock:
+            server._active_chat_traces.pop(key, None)
+
+    assert response.status_code == 200
+    assert response.json() == {"tool_trace": trace, "running": True}
+
+
+def test_chat_explains_llm_token_limit(
+    authenticated_client,
+    monkeypatch,
+):
+    response = httpx.Response(
+        413,
+        request=httpx.Request("POST", "https://api.example.com/v1/chat/completions"),
+    )
+    error = APIStatusError(
+        "request exceeded provider token limit",
+        response=response,
+        body={
+            "error": {
+                "message": "Request too large: requested 10003 tokens, limit is 8000."
+            }
+        },
+    )
+
+    def fail_with_token_limit(*args, **kwargs):
+        raise ExceptionGroup("MCP cleanup failed", [error])
+
+    monkeypatch.setattr(server.harness, "run", fail_with_token_limit)
+
+    result = authenticated_client.post(
+        "/api/chat",
+        json={"message": "Hello"},
+    )
+
+    assert result.status_code == 429
+    assert "10003 tokens" in result.json()["detail"]
+    assert "8000" in result.json()["detail"]
+
+
+def test_chat_explains_llm_connection_failure(
+    authenticated_client,
+    monkeypatch,
+):
+    error = APIConnectionError(
+        message="Connection error: provider unavailable",
+        request=httpx.Request(
+            "POST",
+            "https://api.example.com/v1/chat/completions",
+        ),
+    )
+
+    def fail_with_connection_error(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(server.harness, "run", fail_with_connection_error)
+
+    result = authenticated_client.post(
+        "/api/chat",
+        json={"message": "Hello"},
+    )
+
+    assert result.status_code == 502
+    assert "Не удалось получить ответ от LLM-провайдера" in result.json()["detail"]
+    assert "provider unavailable" in result.json()["detail"]
+
+
+def test_chat_explains_llm_timeout(
+    authenticated_client,
+    monkeypatch,
+):
+    error = APITimeoutError(
+        request=httpx.Request(
+            "POST",
+            "https://api.example.com/v1/chat/completions",
+        ),
+    )
+
+    def fail_with_timeout(*args, **kwargs):
+        raise error
+
+    monkeypatch.setattr(server.harness, "run", fail_with_timeout)
+
+    result = authenticated_client.post(
+        "/api/chat",
+        json={"message": "Hello"},
+    )
+
+    assert result.status_code == 502
+    assert "истекло время ожидания ответа" in result.json()["detail"]
+
+
+def test_chat_returns_details_for_unexpected_agent_error(
+    authenticated_client,
+    monkeypatch,
+):
+    def fail_with_unexpected_error(*args, **kwargs):
+        raise RuntimeError("agent configuration is invalid")
+
+    monkeypatch.setattr(server.harness, "run", fail_with_unexpected_error)
+
+    result = authenticated_client.post(
+        "/api/chat",
+        json={"message": "Hello"},
+    )
+
+    assert result.status_code == 500
+    assert result.json()["detail"] == (
+        "Ошибка выполнения агента: agent configuration is invalid"
+    )
+
+
+def test_chat_returns_details_when_saving_messages_fails(
+    authenticated_client,
+    monkeypatch,
+):
+    original_commit = server.Session.commit
+    commit_count = 0
+
+    def fail_when_saving_messages(session):
+        nonlocal commit_count
+        commit_count += 1
+        if commit_count == 2:
+            raise RuntimeError("database is unavailable")
+        original_commit(session)
+
+    monkeypatch.setattr(server.Session, "commit", fail_when_saving_messages)
+    monkeypatch.setattr(server.harness, "run", lambda *args, **kwargs: "Hello")
+
+    result = authenticated_client.post(
+        "/api/chat",
+        json={"message": "Hello"},
+    )
+
+    assert result.status_code == 500
+    assert result.json()["detail"] == (
+        "Failed to save messages: database is unavailable"
+    )
+
+
+def test_chat_explains_expired_google_calendar_authorization(
+    authenticated_client,
+    monkeypatch,
+):
+    def fail_with_expired_google_token(*args, **kwargs):
+        raise RefreshError(
+            "invalid_grant: Token has been expired or revoked."
+        )
+
+    monkeypatch.setattr(server.harness, "run", fail_with_expired_google_token)
+
+    result = authenticated_client.post(
+        "/api/chat",
+        json={"message": "Hello"},
+    )
+
+    assert result.status_code == 503
+    assert "Google Calendar authorization has expired or been revoked" in result.json()["detail"]
+    assert "Reconnect Google Calendar" in result.json()["detail"]
 
 
 # ==================== HISTORY PASSED TO AGENT ====================
@@ -266,12 +488,13 @@ def test_chat_passes_existing_history_to_agent(
         },
     ]
 
-    def fake_run(history, user_input, *, workspace_id, user_id, db):
+    def fake_run(history, user_input, *, workspace_id, user_id, db, tool_trace):
         assert history == expected_history
         assert user_input == "What is my name?"
         assert workspace_id == test_user.id
         assert user_id == test_user.id
         assert db is not None
+        assert tool_trace == []
         return "Your name is Alex."
 
     monkeypatch.setattr(server.harness, "run", fake_run)
@@ -287,6 +510,202 @@ def test_chat_passes_existing_history_to_agent(
     assert response.status_code == 200
     assert response.json()["response"] == "Your name is Alex."
     assert response.json()["conversation_id"] == conversation.id
+
+
+def test_integrations_status_is_user_scoped(
+    authenticated_client,
+    db_session,
+    test_user,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        settings,
+        "INTEGRATION_ENCRYPTION_KEY",
+        Fernet.generate_key().decode("ascii"),
+    )
+    save_credentials(
+        db_session,
+        user_id=test_user.id,
+        provider="github",
+        credentials={"token": "github-test-token"},
+    )
+
+    response = authenticated_client.get("/api/integrations")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "github": True,
+        "google_calendar": False,
+        "jira": False,
+    }
+
+
+def test_connect_jira_validates_and_encrypts_credentials(
+    authenticated_client,
+    db_session,
+    test_user,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        settings,
+        "INTEGRATION_ENCRYPTION_KEY",
+        Fernet.generate_key().decode("ascii"),
+    )
+    monkeypatch.setattr(server, "validate_jira_credentials", lambda credentials: True)
+
+    response = authenticated_client.put(
+        "/api/integrations/jira",
+        json={
+            "base_url": "https://example.atlassian.net",
+            "email": "test@example.com",
+            "api_token": "jira-test-token",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"connected": True}
+    assert get_credentials(
+        db_session,
+        user_id=test_user.id,
+        provider="jira",
+    ) == {
+        "base_url": "https://example.atlassian.net",
+        "email": "test@example.com",
+        "api_token": "jira-test-token",
+    }
+
+
+def test_connect_github_encrypts_user_token(
+    authenticated_client,
+    db_session,
+    test_user,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        settings,
+        "INTEGRATION_ENCRYPTION_KEY",
+        Fernet.generate_key().decode("ascii"),
+    )
+    monkeypatch.setattr(server, "validate_github_token", lambda token: True)
+
+    response = authenticated_client.put(
+        "/api/integrations/github",
+        json={"token": "github-test-token"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"connected": True}
+    assert get_credentials(
+        db_session,
+        user_id=test_user.id,
+        provider="github",
+    ) == {"token": "github-test-token"}
+
+
+def test_google_oauth_url_uses_signed_user_state(
+    authenticated_client,
+    test_user,
+    monkeypatch,
+):
+    class FakeFlow:
+        def authorization_url(self, **kwargs):
+            return "https://accounts.google.test/authorize", "state"
+
+    captured = {}
+
+    def create_flow(*, state):
+        captured["state"] = state
+        return FakeFlow()
+
+    monkeypatch.setattr(server, "create_google_flow", create_flow)
+
+    response = authenticated_client.get(
+        "/api/integrations/google_calendar/auth-url",
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "authorization_url": "https://accounts.google.test/authorize",
+    }
+    payload = jwt.decode(
+        captured["state"],
+        settings.JWT_SECRET_KEY,
+        algorithms=[settings.JWT_ALGORITHM],
+    )
+    assert payload["sub"] == str(test_user.id)
+    assert payload["purpose"] == "google_calendar_oauth"
+
+
+def test_google_oauth_callback_rejects_invalid_state(client):
+    response = client.get(
+        "/api/integrations/google_calendar/callback",
+        params={"code": "authorization-code", "state": "not-a-jwt"},
+    )
+
+    assert response.status_code == 400
+
+
+def test_google_oauth_callback_saves_user_credentials(
+    client,
+    db_session,
+    test_user,
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        settings,
+        "INTEGRATION_ENCRYPTION_KEY",
+        Fernet.generate_key().decode("ascii"),
+    )
+    state = jwt.encode(
+        {
+            "sub": str(test_user.id),
+            "purpose": "google_calendar_oauth",
+            "nonce": "one-time-state",
+            "exp": datetime.now(timezone.utc) + timedelta(minutes=5),
+        },
+        settings.JWT_SECRET_KEY,
+        algorithm=settings.JWT_ALGORITHM,
+    )
+
+    class FakeCredentials:
+        def to_json(self):
+            return json.dumps(
+                {
+                    "token": "google-access-token",
+                    "refresh_token": "google-refresh-token",
+                    "expiry": (
+                        datetime.now(timezone.utc) + timedelta(hours=1)
+                    ).isoformat(),
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "client_id": "test-client",
+                    "client_secret": "test-secret",
+                }
+            )
+
+    class FakeFlow:
+        credentials = FakeCredentials()
+
+        def fetch_token(self, *, code):
+            assert code == "oauth-code"
+
+    monkeypatch.setattr(server, "create_google_flow", lambda **kwargs: FakeFlow())
+
+    response = client.get(
+        "/api/integrations/google_calendar/callback",
+        params={"code": "oauth-code", "state": state},
+        follow_redirects=False,
+    )
+
+    assert response.status_code == 303
+    assert response.headers["location"].endswith("/?integration=google_calendar")
+    stored_credentials = get_credentials(
+        db_session,
+        user_id=test_user.id,
+        provider="google_calendar",
+    )
+    assert stored_credentials["token"] == "google-access-token"
+    assert stored_credentials["refresh_token"] == "google-refresh-token"
+    assert stored_credentials["client_id"] == "test-client"
 
 
 # ==================== REGISTRATION ====================
@@ -603,6 +1022,10 @@ def test_get_messages_returns_messages(authenticated_client, db_session, test_us
 
     assert response.status_code == 200
     assert response.json() == [
-        {"role": "user", "content": "Привет"},
-        {"role": "assistant", "content": "Привет! Чем помочь?"},
+        {"role": "user", "content": "Привет", "tool_trace": []},
+        {
+            "role": "assistant",
+            "content": "Привет! Чем помочь?",
+            "tool_trace": [],
+        },
     ]

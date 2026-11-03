@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "${POSTGRES_PORT}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,13 +19,100 @@ services:
       retries: 15
       start_period: 5s
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: ""
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      FRONTEND_URL: http://localhost:5173
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - ./secrets:/app/secrets:ro
+      - ./sandbox:/app/sandbox:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - /bin/sh
+      - -c
+      - >-
+        if ! docker image inspect react-agent-sandbox:latest >/dev/null 2>&1; then
+        docker build -t react-agent-sandbox:latest -f /app/sandbox/Dockerfile /app/sandbox || exit 1;
+        fi;
+        exec uvicorn react_agent.backend.api.server:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+      my-default:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  my-default:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command:
+      - uvicorn
+      - react_agent.backend.mcp.my_default_server:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8001"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./src/react_agent/frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
+    ports:
+      - "127.0.0.1:5173:5173"
+    volumes:
+      - ./src/react_agent/frontend:/app
+      - frontend_node_modules:/app/node_modules
+    depends_on:
+      backend:
+        condition: service_healthy
+
   prometheus:
     image: prom/prometheus
     restart: unless-stopped
     ports:
       - "127.0.0.1:9090:9090"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./src/react_agent/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -45,3 +132,4 @@ volumes:
     name: react_agent_postgres_data
   prometheus_data:
   grafana_data:
+  frontend_node_modules:

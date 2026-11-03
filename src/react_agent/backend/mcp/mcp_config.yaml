@@ -1,0 +1,46 @@
+servers:
+  my_default:
+    enabled: true
+    transport: streamable_http
+    url: ${MY_DEFAULT_MCP_URL}
+    auth: backend
+
+  jira:
+    enabled: true
+    transport: streamable_http
+    url: ${JIRA_MCP_URL}
+    credentials: jira
+    read_only: false
+    tool_allowlist:
+      - getAccessibleAtlassianResources
+      - getJiraIssue
+      - listJiraIssueComments
+      - searchJiraIssuesUsingJql
+      - createJiraIssue
+      - editJiraIssue
+      - transitionJiraIssue
+      - addOrEditJiraIssueComment
+
+  google_calendar:
+    enabled: true
+    transport: streamable_http
+    url: ${GOOGLE_CALENDAR_MCP_URL}
+    credentials: google_calendar
+    read_only: true
+    tool_allowlist:
+      - list_events
+      - get_event
+      - list_calendars
+      - search_events
+      - suggest_time
+      
+  github:
+    enabled: true
+    transport: streamable_http
+    url: ${GITHUB_MCP_URL}
+    credentials: github
+    tool_allowlist:
+      - get_file_contents
+      - search_code
+      - pull_request_read
+      - create_pull_request

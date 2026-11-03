@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 
-from react_agent.db import database
+from react_agent.backend.db import database
 
 
 def test_get_db_yields_session_and_closes_it(monkeypatch):

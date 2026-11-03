@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-from react_agent.sandbox.executor import (
+from react_agent.backend.sandbox.executor import (
     SANDBOX_IMAGE,
     WORKSPACE_VOLUME_PREFIX,
     SandboxExecutor,

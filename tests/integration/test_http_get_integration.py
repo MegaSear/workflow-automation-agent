@@ -1,6 +1,6 @@
 import json
 
-from react_agent.agent.tools.http_get import http_get
+from react_agent.backend.mcp.servers.default.tools.http_get import http_get
 
 
 def test_http_get_fetches_from_allowlisted_api():
