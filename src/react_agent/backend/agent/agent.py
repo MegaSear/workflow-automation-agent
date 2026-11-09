@@ -13,11 +13,11 @@ class Agent:
     ) -> list[dict]:
         system_prompt = load_system_prompt()
         tools_prompt = load_tools_prompt()
-
+        context = system_prompt + "\n\n" + tools_prompt
         return [
             {
                 "role": "system",
-                "content": system_prompt + "\n\n" + tools_prompt,
+                "content": context,
             },
             *history,
             {

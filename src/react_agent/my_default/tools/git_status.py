@@ -1,4 +1,4 @@
-from react_agent.backend.sandbox.executor import SandboxExecutor
+from react_agent.my_default.sandbox.executor import SandboxExecutor
 
 
 def git_status(sandbox: SandboxExecutor) -> str:

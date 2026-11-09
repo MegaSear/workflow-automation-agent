@@ -3,7 +3,7 @@ import ipaddress
 import socket
 from urllib.parse import urlsplit
 
-from react_agent.backend.config import settings
+from react_agent.my_default.config import settings
 
 
 def get(url: str) -> str:

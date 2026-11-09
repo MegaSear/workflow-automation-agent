@@ -8,23 +8,23 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import Route
 
-from react_agent.backend.config import settings
-from react_agent.backend.mcp.servers.default.tools.create_file import (
+from react_agent.my_default.config import settings
+from react_agent.my_default.sandbox.executor import SandboxExecutor
+from react_agent.my_default.tools.create_file import (
     create_file as run_create_file,
 )
-from react_agent.backend.mcp.servers.default.tools.get_current_time import (
+from react_agent.my_default.tools.get_current_time import (
     get_current_time as run_get_current_time,
 )
-from react_agent.backend.mcp.servers.default.tools.git_status import (
+from react_agent.my_default.tools.git_status import (
     git_status as run_git_status,
 )
-from react_agent.backend.mcp.servers.default.tools.http_get import (
+from react_agent.my_default.tools.http_get import (
     http_get as run_http_get,
 )
-from react_agent.backend.mcp.servers.default.tools.read_file import (
+from react_agent.my_default.tools.read_file import (
     read_file as run_read_file,
 )
-from react_agent.backend.sandbox.executor import SandboxExecutor
 
 _workspace_id: contextvars.ContextVar[int] = contextvars.ContextVar("workspace_id")
 
@@ -88,10 +88,7 @@ class _BackendAuthMiddleware:
         except ValueError:
             workspace_id = 0
 
-        if (
-            not hmac.compare_digest(supplied_token, self._token)
-            or workspace_id <= 0
-        ):
+        if not hmac.compare_digest(supplied_token, self._token) or workspace_id <= 0:
             response = JSONResponse(
                 {"detail": "Unauthorized"},
                 status_code=401,

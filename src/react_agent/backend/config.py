@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     LLM_REASONING_EFFORT: Literal["low", "medium", "high"] | None = None
 
     # FULLSTACK
-    FRONTEND_URL: str = "http://localhost:5173"
+    FRONTEND_URL: str | None
 
     # PostgreSQL
     DATABASE_MODE: str = "compose"
@@ -38,29 +38,23 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
-    # HTTP
-    ALLOWED_HOSTS_FILE: Path = PROJECT_ROOT / "config" / "http_allowed_hosts.txt"
-    ALLOWED_PORTS: set[int] = {443}
-    REQUEST_TIMEOUT: int = 10
-    MAX_BODY_BYTES: int = 100_000
-
     # Google Calendar
     GOOGLE_CALENDAR_CREDENTIALS_FILE: Path = (
         PROJECT_ROOT / "secrets" / "google_web_credentials.json"
     )
     GOOGLE_CALENDAR_TOKEN_FILE: Path = PROJECT_ROOT / "secrets" / "google_token.json"
-    GOOGLE_CALENDAR_REDIRECT_URI: str = (
-        "http://localhost:8000/api/integrations/google_calendar/callback"
-    )
+    GOOGLE_CALENDAR_REDIRECT_URI: str | None
 
     # ENCRYPT CREDENTIALS
-    INTEGRATION_ENCRYPTION_KEY: str | None = None
+    INTEGRATION_ENCRYPTION_KEY: str | None
+
+    # MCP service
+    MY_DEFAULT_MCP_URL: str
+    MY_DEFAULT_MCP_TOKEN: str | None
 
     # Internal MCP service
-    MY_DEFAULT_MCP_URL: str = "http://my-default:8001/mcp"
-    MY_DEFAULT_MCP_TOKEN: str | None = None
-    GOOGLE_CALENDAR_MCP_URL: str | None = None
-    GITHUB_MCP_URL: str = "https://api.githubcopilot.com/mcp/"
+    GOOGLE_CALENDAR_MCP_URL: str | None
+    GITHUB_MCP_URL: str | None
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod

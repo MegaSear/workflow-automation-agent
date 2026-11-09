@@ -1,4 +1,4 @@
-import react_agent.backend.agent.http_client as http_client
+import react_agent.my_default.http_client as http_client
 
 
 def http_get(url: str) -> str:

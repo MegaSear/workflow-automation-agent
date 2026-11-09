@@ -44,3 +44,19 @@ class LLMClient:
             **request,
         )
         return response.choices[0].message
+
+    def warmup(self, cache_prompt: str) -> None:
+        response = self._client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": cache_prompt,
+                }
+            ],
+            max_tokens=1,
+            temperature=0,
+        )
+        if not response.choices:
+            raise RuntimeError("LLM warmup returned no choices")
+        return response

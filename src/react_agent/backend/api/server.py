@@ -49,8 +49,11 @@ from react_agent.backend.integrations.oauth_state import (
     save_google_oauth_state,
 )
 from react_agent.backend.llm.client import LLMClient
+from react_agent.backend.llm.prompts import load_system_prompt, load_tools_prompt
 
 logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
+
 _active_chat_traces: dict[str, tuple[int, list[dict[str, str]]]] = {}
 _active_chat_traces_lock = Lock()
 
@@ -111,8 +114,26 @@ def _llm_error_detail(error: APIStatusError | APIConnectionError) -> str:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    app.state.ready = False
+    logger.info("Lifespan entered")
     Base.metadata.create_all(bind=engine)
+    logger.info("Database tables initialized")
     _ensure_message_tool_trace_column()
+    logger.info("Message tool_trace column checked")
+
+    try:
+        # Create KV-cache on warmup
+        logger.info("Starting LLM warmup")
+        system_prompt = load_system_prompt()
+        tools_prompt = load_tools_prompt()
+        context = system_prompt + "\n\n" + tools_prompt
+        logger.info("Warmup context length: %d characters", len(context))
+        response = llm_client.warmup(context)
+        app.state.ready = True
+        logger.info(f"LLM warmup completed with response: {response}")
+    except Exception:
+        logger.exception("LLM warmup failed")
+
     yield
 
 
@@ -139,8 +160,18 @@ app.add_middleware(
 # Agent setup
 MAX_TOOL_ROUNDS = 10
 
-agent = Agent(LLMClient())
+llm_client = LLMClient()
+agent = Agent(llm_client)
 harness = Harness(agent, max_tool_rounds=MAX_TOOL_ROUNDS)
+
+
+# ===================== Health =====================
+@app.get("/health")
+def health():
+    if not app.state.ready:
+        raise HTTPException(status_code=503, detail="Backend is not ready")
+
+    return {"status": "ready"}
 
 
 # ===================== AUTH =====================
