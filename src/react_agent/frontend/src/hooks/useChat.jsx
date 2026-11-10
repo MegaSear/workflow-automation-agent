@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getChatProgress, sendMessageRequest } from "../api/chat";
 import {
   getConversations,
@@ -22,6 +22,8 @@ export function useChat(token, logout) {
   const [activeToolTrace, setActiveToolTrace] = useState([]);
   const [conversations, setConversations] = useState([]);
 
+  const viewVersionRef = useRef(0);
+
   async function refreshConversations() {
     const data = await getConversations(token);
     setConversations(data);
@@ -29,6 +31,7 @@ export function useChat(token, logout) {
   }
 
   useEffect(() => {
+    const requestVersion = ++viewVersionRef.current;
     let cancelled = false;
 
     getConversations(token)
@@ -36,6 +39,7 @@ export function useChat(token, logout) {
         if (cancelled) return;
 
         setConversations(data);
+        if (viewVersionRef.current !== requestVersion) return;
 
         if (data.length === 0) {
           setConversationId(null);
@@ -48,7 +52,7 @@ export function useChat(token, logout) {
 
         const history = await getConversationMessages(conversation.id, token);
 
-        if (cancelled) return;
+        if (cancelled || viewVersionRef.current !== requestVersion) return;
 
         setConversationId(conversation.id);
         setMessages(normalizeMessages(history));
@@ -70,12 +74,19 @@ export function useChat(token, logout) {
   }, [token, logout]);
 
   async function openConversation(id) {
-    if (id === conversationId || loading) {
+    if (id === conversationId) {
       return;
     }
 
+    const requestVersion = ++viewVersionRef.current;
+    setActiveToolTrace([]);
+
     try {
       const history = await getConversationMessages(id, token);
+
+      if (viewVersionRef.current !== requestVersion) {
+        return;
+      }
 
       setConversationId(id);
       setMessages(normalizeMessages(history));
@@ -91,19 +102,21 @@ export function useChat(token, logout) {
   }
 
   function startNewConversation() {
-    if (loading) {
-      return;
-    }
+    viewVersionRef.current += 1;
 
     setConversationId(null);
     setMessages([]);
     setInput("");
+    setActiveToolTrace([]);
   }
 
   async function handleDeleteConversation(id) {
-    if (loading || !token) {
+    if (!token) {
       return;
     }
+
+    const requestVersion = viewVersionRef.current;
+    const wasActive = id === conversationId;
 
     // Сначала удаляем диалог на сервере.
     try {
@@ -123,15 +136,19 @@ export function useChat(token, logout) {
       (conversation) => conversation.id !== id,
     );
 
-    setConversations(remainingConversations);
+    setConversations((prev) =>
+      prev.filter((conversation) => conversation.id !== id),
+    );
 
-    // Если удалили неактивный диалог, больше ничего делать не нужно.
-    if (id !== conversationId) {
+    if (!wasActive || viewVersionRef.current !== requestVersion) {
       return;
     }
 
+    const nextVersion = ++viewVersionRef.current;
+
     setInput("");
     setMessages([]);
+    setActiveToolTrace([]);
 
     // Если диалогов больше нет, показываем пустой чат.
     if (remainingConversations.length === 0) {
@@ -146,16 +163,22 @@ export function useChat(token, logout) {
 
     try {
       const history = await getConversationMessages(nextConversation.id, token);
-
-      setMessages(normalizeMessages(history));
-    } catch (error) {
-      if (error.status === 401) {
-        logout();
+      if (viewVersionRef.current !== nextVersion) {
         return;
       }
+      setMessages(normalizeMessages(history));
+    } catch (error) {
+        if (viewVersionRef.current !== nextVersion) {
+          return;
+        }
 
-      console.error("Не удалось загрузить следующий диалог:", error);
-    }
+        if (error.status === 401) {
+          logout();
+          return;
+        }
+
+        console.error("Не удалось загрузить следующий диалог:", error);
+      }
   }
 
   async function handleRenameConversation(id, title) {
@@ -201,6 +224,7 @@ export function useChat(token, logout) {
       return;
     }
 
+    const requestViewVersion = viewVersionRef.current;
     const userMessage = input.trim();
     setInput("");
 
@@ -213,7 +237,9 @@ export function useChat(token, logout) {
     ]);
 
     setLoading(true);
-    setActiveToolTrace([]);
+    if (viewVersionRef.current === requestViewVersion) {
+      setActiveToolTrace([]);
+    }
     const traceId = globalThis.crypto.randomUUID();
     let keepPolling = true;
 
@@ -221,7 +247,9 @@ export function useChat(token, logout) {
       while (keepPolling) {
         try {
           const progress = await getChatProgress(traceId, token);
-          setActiveToolTrace(progress.tool_trace);
+          if (viewVersionRef.current === requestViewVersion) {
+            setActiveToolTrace(progress.tool_trace);
+          }
         } catch (error) {
           if (error.status === 401) {
             logout();
@@ -246,16 +274,18 @@ export function useChat(token, logout) {
         traceId,
       );
 
-      setConversationId(data.conversation_id);
+      if (viewVersionRef.current === requestViewVersion) {
+        setConversationId(data.conversation_id);
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.response,
-          toolTrace: data.tool_trace || [],
-        },
-      ]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.response,
+            toolTrace: data.tool_trace || [],
+          },
+        ]);
+      }
 
       try {
         await refreshConversations();
@@ -272,18 +302,21 @@ export function useChat(token, logout) {
         logout();
         return;
       }
-
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: error.message || "Ошибка соединения с сервером.",
-        },
-      ]);
+      if (viewVersionRef.current === requestViewVersion) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: error.message || "Ошибка соединения с сервером.",
+          },
+        ]);
+      }
     } finally {
       keepPolling = false;
       await progressPolling;
-      setActiveToolTrace([]);
+      if (viewVersionRef.current === requestViewVersion) {
+        setActiveToolTrace([]);
+      }
       setLoading(false);
     }
   }
