@@ -70,6 +70,7 @@ services:
       - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - ./config:/app/config:ro
     depends_on:
       sandbox-image:
         condition: service_completed_successfully
