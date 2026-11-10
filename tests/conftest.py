@@ -1,17 +1,25 @@
 import os
+import tempfile
 
 os.environ.update(
     {
         "LLM_API_KEY": "test-key",
         "LLM_BASE_URL": "https://example.invalid/v1",
         "LLM_MODEL": "test-model",
+        "FRONTEND_URL": "http://localhost:3000",
         "DATABASE_URL": "sqlite://",
         "POSTGRES_DB": "test",
         "POSTGRES_USER": "test",
         "POSTGRES_PASSWORD": "test",
         "POSTGRES_PORT": "5432",
         "JWT_SECRET_KEY": "test-secret-key-for-tests-only-0123456789",
+        "GOOGLE_CALENDAR_REDIRECT_URI": "http://localhost:8000/oauth/callback",
+        "INTEGRATION_ENCRYPTION_KEY": "test-encryption-key",
+        "JIRA_MCP_URL": "http://localhost:8004/mcp",
+        "MY_DEFAULT_MCP_URL": "http://my-default:8001/mcp",
         "MY_DEFAULT_MCP_TOKEN": "test-internal-mcp-token",
+        "GOOGLE_CALENDAR_MCP_URL": "http://localhost:8002/mcp",
+        "GITHUB_MCP_URL": "http://localhost:8003/mcp",
     }
 )
 
@@ -22,10 +30,44 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
-from react_agent.backend.api.server import app
-from react_agent.backend.auth.auth import get_current_user
-from react_agent.backend.db.database import Base, get_db
-from react_agent.backend.db.models import User
+
+def load_test_application():
+    original_directory = os.getcwd()
+    with tempfile.TemporaryDirectory() as isolated_directory:
+        os.chdir(isolated_directory)
+        try:
+            from react_agent.backend.api import server
+            from react_agent.backend.api.server import app
+            from react_agent.backend.auth.auth import get_current_user
+            from react_agent.backend.db.database import Base, get_db
+            from react_agent.backend.db.models import User
+        finally:
+            os.chdir(original_directory)
+
+    return app, get_current_user, Base, get_db, User, server
+
+
+app, get_current_user, Base, get_db, User, server = load_test_application()
+
+_ORIGINAL_DIRECTORY = os.getcwd()
+_ISOLATED_SETTINGS_DIRECTORY = tempfile.TemporaryDirectory()
+
+
+def pytest_sessionstart(session):
+    os.chdir(_ISOLATED_SETTINGS_DIRECTORY.name)
+
+
+def pytest_sessionfinish(session, exitstatus):
+    os.chdir(_ORIGINAL_DIRECTORY)
+    _ISOLATED_SETTINGS_DIRECTORY.cleanup()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def disable_llm_warmup():
+    original_warmup = server.llm_client.warmup
+    server.llm_client.warmup = lambda context: "test warmup"
+    yield
+    server.llm_client.warmup = original_warmup
 
 
 @pytest.fixture

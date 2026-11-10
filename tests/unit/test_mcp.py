@@ -12,15 +12,15 @@ from starlette.testclient import TestClient
 from react_agent.backend.config import settings
 from react_agent.backend.integrations.credentials import save_credentials
 from react_agent.backend.integrations.google_oauth import GOOGLE_CALENDAR_SCOPES
-from react_agent.backend.integrations.jira import _connection_details
+from react_agent.backend.integrations.jira import validate_jira_credentials
 from react_agent.backend.mcp.manager import MCPManager
-from react_agent.backend.mcp.my_default_server import (
-    create_my_default_app,
-    create_my_default_server,
-)
 from react_agent.backend.mcp.registry import (
     create_mcp_client_factories,
     load_mcp_server_specs,
+)
+from react_agent.my_default.server import (
+    create_my_default_app,
+    create_my_default_server,
 )
 
 
@@ -312,19 +312,23 @@ def test_mcp_registry_skips_missing_remote_url(db_session, test_user, monkeypatc
 
 
 @pytest.mark.parametrize(
-    "base_url",
+    ("credentials", "message"),
     [
-        "http://example.atlassian.net",
-        "https://evil.example",
-        "https://localhost",
+        ({"api_token": "token"}, "Jira email is required"),
+        ({"email": "test@example.com"}, "Jira API token is required"),
     ],
 )
-def test_jira_rejects_unsafe_base_urls(base_url):
-    with pytest.raises(ValueError):
-        _connection_details(
-            {
-                "base_url": base_url,
-                "email": "test@example.com",
-                "api_token": "token",
-            }
+def test_jira_requires_credentials(credentials, message):
+    with pytest.raises(ValueError, match=message):
+        asyncio.run(validate_jira_credentials(credentials))
+
+
+def test_jira_requires_configured_mcp_url(monkeypatch):
+    monkeypatch.delenv("JIRA_MCP_URL", raising=False)
+
+    with pytest.raises(ValueError, match="JIRA_MCP_URL is not configured"):
+        asyncio.run(
+            validate_jira_credentials(
+                {"email": "test@example.com", "api_token": "token"}
+            )
         )

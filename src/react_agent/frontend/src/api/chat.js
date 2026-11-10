@@ -41,14 +41,11 @@ export async function sendMessageRequest(
 }
 
 export async function getChatProgress(traceId, token) {
-  const response = await fetch(
-    `${API_BASE_URL}/api/chat/${traceId}/progress`,
-    {
-      headers: {
-        Authorization: "Bearer " + token,
-      },
+  const response = await fetch(`${API_BASE_URL}/api/chat/${traceId}/progress`, {
+    headers: {
+      Authorization: "Bearer " + token,
     },
-  );
+  });
 
   if (!response.ok) {
     const error = new Error(`HTTP ${response.status}`);

@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # ENCRYPT CREDENTIALS
+    INTEGRATION_ENCRYPTION_KEY: str | None
+
     # Google Calendar
     GOOGLE_CALENDAR_CREDENTIALS_FILE: Path = (
         PROJECT_ROOT / "secrets" / "google_web_credentials.json"
@@ -45,8 +48,8 @@ class Settings(BaseSettings):
     GOOGLE_CALENDAR_TOKEN_FILE: Path = PROJECT_ROOT / "secrets" / "google_token.json"
     GOOGLE_CALENDAR_REDIRECT_URI: str | None
 
-    # ENCRYPT CREDENTIALS
-    INTEGRATION_ENCRYPTION_KEY: str | None
+    # JIRA MCP
+    JIRA_MCP_URL: str | None
 
     # MCP service
     MY_DEFAULT_MCP_URL: str

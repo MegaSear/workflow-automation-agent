@@ -115,7 +115,7 @@ export default function IntegrationsMenu({
                               ? "Скрыть"
                               : integration.id === "github" && githubFormOpen
                                 ? "Скрыть"
-                              : "Подключить"}
+                                : "Подключить"}
                       </button>
                     </div>
                   );

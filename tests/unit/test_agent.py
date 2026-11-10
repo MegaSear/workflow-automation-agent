@@ -1,7 +1,7 @@
 from react_agent.backend.agent.agent import Agent
 
 
-def test_build_messages_keeps_recent_complete_history(monkeypatch):
+def test_build_messages_preserves_complete_history(monkeypatch):
     monkeypatch.setattr(
         "react_agent.backend.agent.agent.load_system_prompt",
         lambda: "system",
@@ -21,6 +21,8 @@ def test_build_messages_keeps_recent_complete_history(monkeypatch):
 
     assert messages == [
         {"role": "system", "content": "system\n\ntools"},
+        {"role": "user", "content": "old request " * 250},
+        {"role": "assistant", "content": "old response " * 125},
         {"role": "user", "content": "recent request"},
         {"role": "assistant", "content": "recent response"},
         {"role": "user", "content": "current request"},

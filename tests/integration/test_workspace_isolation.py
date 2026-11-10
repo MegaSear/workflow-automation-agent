@@ -3,7 +3,7 @@ import subprocess
 
 import pytest
 
-from react_agent.backend.sandbox.executor import (
+from react_agent.my_default.sandbox.executor import (
     SANDBOX_IMAGE,
     WORKSPACE_VOLUME_PREFIX,
     SandboxExecutor,
@@ -34,7 +34,7 @@ def require_docker_image() -> None:
     if result.returncode != 0:
         pytest.skip(
             "Sandbox image is missing. Build it with: "
-            "docker build -t react-agent-sandbox:latest ./sandbox"
+            "docker build -t react-agent-sandbox:latest ./docker/sandbox"
         )
 
 

@@ -60,9 +60,7 @@ export default function ChatWindow({
             <div>{message.content}</div>
             {message.role === "assistant" && message.toolTrace?.length > 0 && (
               <details className="tool-trace" open>
-                <summary>
-                  Thinking... ({message.toolTrace.length})
-                </summary>
+                <summary>Thinking... ({message.toolTrace.length})</summary>
                 <ToolTraceList tools={message.toolTrace} />
               </details>
             )}

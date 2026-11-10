@@ -2,7 +2,7 @@ import subprocess
 
 import pytest
 
-from react_agent.backend.sandbox.executor import SandboxExecutor
+from react_agent.my_default.sandbox.executor import SandboxExecutor
 
 
 def test_different_workspaces_use_different_volumes(monkeypatch):
@@ -18,7 +18,7 @@ def test_different_workspaces_use_different_volumes(monkeypatch):
         )
 
     monkeypatch.setattr(
-        "react_agent.backend.sandbox.executor.subprocess.run",
+        "react_agent.my_default.sandbox.executor.subprocess.run",
         fake_run,
     )
 

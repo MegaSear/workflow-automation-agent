@@ -22,7 +22,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/backend/Dockerfile
     restart: unless-stopped
     env_file:
       - .env
@@ -37,16 +37,6 @@ services:
       - ./src:/app/src
       - ./config:/app/config:ro
       - ./secrets:/app/secrets:ro
-      - ./sandbox:/app/sandbox:ro
-      - /var/run/docker.sock:/var/run/docker.sock
-    command:
-      - /bin/sh
-      - -c
-      - >-
-        if ! docker image inspect react-agent-sandbox:latest >/dev/null 2>&1; then
-        docker build -t react-agent-sandbox:latest -f /app/sandbox/Dockerfile /app/sandbox || exit 1;
-        fi;
-        exec uvicorn react_agent.backend.api.server:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,28 +47,32 @@ services:
         - CMD
         - python
         - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=3)"
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
 
+  sandbox-image:
+    image: react-agent-sandbox:latest
+    build:
+      context: .
+      dockerfile: docker/sandbox/Dockerfile
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["exit 0"]
   my-default:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: docker/my-default/Dockerfile
     restart: unless-stopped
     env_file:
       - .env
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command:
-      - uvicorn
-      - react_agent.backend.mcp.my_default_server:app
-      - --host
-      - 0.0.0.0
-      - --port
-      - "8001"
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
     healthcheck:
       test:
         - CMD
@@ -106,6 +100,31 @@ services:
       backend:
         condition: service_healthy
 
+  vllm:
+    build:
+      context: .
+      dockerfile: docker/vllm/Dockerfile
+    image: react-agent-vllm-cpu
+    restart: unless-stopped
+    cpus: 4
+    mem_limit: 7g
+    shm_size: 1gb
+    profiles:
+      - vllm
+    ports:
+      - "127.0.0.1:8001:8000"
+    volumes:
+      - vllm_cache:/root/.cache/huggingface
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 300s
   prometheus:
     image: prom/prometheus
     restart: unless-stopped
@@ -133,3 +152,5 @@ volumes:
   prometheus_data:
   grafana_data:
   frontend_node_modules:
+  vllm_cache:
+    name: react_agent_vllm_cache

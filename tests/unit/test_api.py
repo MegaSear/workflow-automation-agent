@@ -430,9 +430,7 @@ def test_chat_explains_expired_google_calendar_authorization(
     monkeypatch,
 ):
     def fail_with_expired_google_token(*args, **kwargs):
-        raise RefreshError(
-            "invalid_grant: Token has been expired or revoked."
-        )
+        raise RefreshError("invalid_grant: Token has been expired or revoked.")
 
     monkeypatch.setattr(server.harness, "run", fail_with_expired_google_token)
 
@@ -442,7 +440,10 @@ def test_chat_explains_expired_google_calendar_authorization(
     )
 
     assert result.status_code == 503
-    assert "Google Calendar authorization has expired or been revoked" in result.json()["detail"]
+    assert (
+        "Google Calendar authorization has expired or been revoked"
+        in result.json()["detail"]
+    )
     assert "Reconnect Google Calendar" in result.json()["detail"]
 
 
@@ -551,12 +552,15 @@ def test_connect_jira_validates_and_encrypts_credentials(
         "INTEGRATION_ENCRYPTION_KEY",
         Fernet.generate_key().decode("ascii"),
     )
-    monkeypatch.setattr(server, "validate_jira_credentials", lambda credentials: True)
+
+    async def valid_jira_credentials(credentials):
+        return True
+
+    monkeypatch.setattr(server, "validate_jira_credentials", valid_jira_credentials)
 
     response = authenticated_client.put(
         "/api/integrations/jira",
         json={
-            "base_url": "https://example.atlassian.net",
             "email": "test@example.com",
             "api_token": "jira-test-token",
         },
@@ -569,7 +573,6 @@ def test_connect_jira_validates_and_encrypts_credentials(
         user_id=test_user.id,
         provider="jira",
     ) == {
-        "base_url": "https://example.atlassian.net",
         "email": "test@example.com",
         "api_token": "jira-test-token",
     }
@@ -604,10 +607,19 @@ def test_connect_github_encrypts_user_token(
 
 def test_google_oauth_url_uses_signed_user_state(
     authenticated_client,
+    db_session,
     test_user,
     monkeypatch,
 ):
+    monkeypatch.setattr(
+        settings,
+        "INTEGRATION_ENCRYPTION_KEY",
+        Fernet.generate_key().decode("ascii"),
+    )
+
     class FakeFlow:
+        code_verifier = "test-code-verifier"
+
         def authorization_url(self, **kwargs):
             return "https://accounts.google.test/authorize", "state"
 
@@ -666,6 +678,13 @@ def test_google_oauth_callback_saves_user_credentials(
         settings.JWT_SECRET_KEY,
         algorithm=settings.JWT_ALGORITHM,
     )
+
+    def consume_state(db, *, nonce, user_id):
+        assert nonce == "one-time-state"
+        assert user_id == test_user.id
+        return "test-code-verifier"
+
+    monkeypatch.setattr(server, "consume_google_oauth_state", consume_state)
 
     class FakeCredentials:
         def to_json(self):

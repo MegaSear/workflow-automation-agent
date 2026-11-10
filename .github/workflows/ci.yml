@@ -1,13 +1,18 @@
-name: tests
-on: [push, pull_request]
+name: CI
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   backend-unit:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.0
@@ -16,10 +21,12 @@ jobs:
       - run: uv sync --locked
       - name: Lint with Ruff
         run: uv run ruff check .
-      - run: uv run pytest tests/unit --cov=react_agent
+      - name: Run unit tests
+        run: uv run pytest tests/unit --cov=react_agent --cov-report=term-missing
 
   backend-integration:
     runs-on: ubuntu-latest
+    needs: backend-unit
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v10.3.0
@@ -29,24 +36,23 @@ jobs:
       - name: Lint with Ruff
         run: uv run ruff check .
       - name: Build sandbox image
-        run: docker build -t react-agent-sandbox:latest ./sandbox
+        run: docker build -t react-agent-sandbox:latest ./docker/sandbox
 
       - name: Run integration tests
-        run: uv run pytest tests/integration/ -v
-
+        run: uv run pytest tests/integration -v
 
   frontend:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: frontend
+        working-directory: src/react_agent/frontend
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: src/react_agent/frontend/package-lock.json
           
       - name: Install dependencies
         run: npm ci
