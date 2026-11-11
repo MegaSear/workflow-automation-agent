@@ -18,11 +18,9 @@ logger = logging.getLogger(__name__)
 
 
 # Agent setup
-MAX_TOOL_ROUNDS = 10
-
 llm_client = LLMClient()
 agent = Agent(llm_client)
-harness = Harness(agent, max_tool_rounds=MAX_TOOL_ROUNDS)
+harness = Harness(agent, max_tool_rounds=settings.MAX_TOOL_ROUNDS)
 
 
 def _ensure_message_tool_trace_column(database_engine: Engine = engine) -> None:

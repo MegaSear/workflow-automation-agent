@@ -22,8 +22,9 @@ class Settings(BaseSettings):
     LLM_REASONING_EFFORT: Literal["low", "medium", "high"] | None = None
     LLM_PARALLEL_TOOL_CALLS: bool = True
     LLM_WARMUP_ENABLED: bool = False
+    MAX_TOOL_ROUNDS: int = 10
 
-    # FULLSTACK
+    # Components
     FRONTEND_URL: str | None
 
     # PostgreSQL
