@@ -47,7 +47,7 @@ class GitHubCredentialsRequest(BaseModel):
     token: str = Field(min_length=1, max_length=1000)
 
 
-@router.get("/")
+@router.get("")
 def list_integrations(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),

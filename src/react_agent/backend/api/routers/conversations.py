@@ -25,7 +25,7 @@ class RenameConversationRequest(BaseModel):
 
 
 @router.get(
-    "/",
+    "",
     response_model=list[ConversationResponse],
 )
 def get_conversations(

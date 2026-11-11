@@ -115,7 +115,7 @@ def get_chat_progress(
 
 
 @router.post(
-    "/",
+    "",
     response_model=ChatResponse,
 )
 def chat(

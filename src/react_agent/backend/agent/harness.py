@@ -65,7 +65,12 @@ class Harness:
         started = perf_counter()
         run_status = "error"
         AGENT_ACTIVE_RUNS.inc()
-
+        logger.info(
+            "Agent run started: user_id=%s workspace_id=%s max_tool_rounds=%s",
+            user_id,
+            workspace_id,
+            self._max_tool_rounds,
+        )
         try:
             server_specs = load_mcp_server_specs()
             remote_clients = create_mcp_client_factories(
@@ -95,6 +100,31 @@ class Harness:
                 for step in range(self._max_tool_rounds + 1):
                     tools = mcp.get_openai_tools()
 
+                    logger.info(
+                        "LLM request started: step=%s messages=%s tools=%s",
+                        step,
+                        len(messages),
+                        len(tools),
+                    )
+                    logger.info(
+                        "LLM request messages:\n%s",
+                        json.dumps(
+                            messages,
+                            ensure_ascii=False,
+                            indent=2,
+                            default=str,
+                        ),
+                    )
+
+                    logger.info(
+                        "LLM request tools:\n%s",
+                        json.dumps(
+                            tools,
+                            ensure_ascii=False,
+                            indent=2,
+                            default=str,
+                        ),
+                    )
                     response = self._agent.generate(
                         messages=messages,
                         tools=tools,
@@ -107,6 +137,13 @@ class Harness:
 
                     finish_reason = choice.finish_reason
                     tool_calls = choice.message.tool_calls
+
+                    logger.info(
+                        "LLM response received: step=%s finish_reason=%s tool_calls=%s",
+                        step,
+                        finish_reason,
+                        len(tool_calls or []),
+                    )
 
                     if finish_reason == "stop":
                         run_status = "success"
@@ -153,8 +190,16 @@ class Harness:
                         )
                         messages.append(tool_message)
 
+                run_status = "max_tool_rounds"
                 return "Не удалось завершить выполнение."
 
+        except Exception:
+            logger.exception(
+                "Agent run failed: user_id=%s workspace_id=%s",
+                user_id,
+                workspace_id,
+            )
+            raise
         finally:
             AGENT_ACTIVE_RUNS.dec()
             AGENT_RUNS.labels(status=run_status).inc()
@@ -170,6 +215,12 @@ class Harness:
 
         finish_reason = response.choices[0].finish_reason or "unknown"
         LLM_FINISH_REASONS.labels(reason=finish_reason).inc()
+        logger.info(
+            "LLM token usage: prompt_tokens=%s completion_tokens=%s total_tokens=%s",
+            usage.prompt_tokens,
+            usage.completion_tokens,
+            usage.total_tokens,
+        )
 
     @staticmethod
     def _build_ai_message(message) -> AIMessage:
@@ -215,6 +266,11 @@ class Harness:
             trace_entry = {"name": name, "status": "running"}
             tool_trace.append(trace_entry)
 
+        logger.info(
+            "Tool execution started: name=%s call_id=%s",
+            name,
+            call_id,
+        )
         try:
             result = await mcp.call_tool(
                 name=name,
@@ -224,8 +280,13 @@ class Harness:
             content = str(result)
             status = "success"
 
-        except Exception as error:
-            content = f"Tool error: {error}"
+        except Exception:
+            logger.exception(
+                "Tool execution failed: name=%s call_id=%s",
+                name,
+                call_id,
+            )
+            content = "Tool execution failed."
 
         finally:
             TOOL_CALLS.labels(
@@ -237,6 +298,14 @@ class Harness:
 
             if trace_entry is not None:
                 trace_entry["status"] = status
+
+            logger.info(
+                "Tool execution finished: name=%s call_id=%s status=%s duration_ms=%.2f",
+                name,
+                call_id,
+                status,
+                (perf_counter() - started) * 1000,
+            )
 
         return ToolMessage(
             content=content,
