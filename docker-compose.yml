@@ -87,8 +87,8 @@ services:
 
   frontend:
     build:
-      context: ./src/react_agent/frontend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: docker/frontend/Dockerfile.dev
     restart: unless-stopped
     environment:
       VITE_API_PROXY_TARGET: http://backend:8000
@@ -97,9 +97,6 @@ services:
     volumes:
       - ./src/react_agent/frontend:/app
       - frontend_node_modules:/app/node_modules
-    depends_on:
-      backend:
-        condition: service_healthy
 
   vllm:
     build:

@@ -1,3 +1,5 @@
+from langchain_core.messages import convert_to_openai_messages
+
 from react_agent.backend.agent.agent import Agent
 
 
@@ -7,7 +9,7 @@ def test_build_messages_preserves_complete_history(monkeypatch):
         lambda: "system",
     )
     monkeypatch.setattr(
-        "react_agent.backend.agent.agent.load_tools_prompt",
+        "react_agent.backend.agent.agent.load_tools_policy_prompt",
         lambda: "tools",
     )
     history = [
@@ -17,7 +19,9 @@ def test_build_messages_preserves_complete_history(monkeypatch):
         {"role": "assistant", "content": "recent response"},
     ]
 
-    messages = Agent(llm=None).build_messages(history, "current request")
+    messages = convert_to_openai_messages(
+        Agent(llm=None).build_messages(history, "current request")
+    )
 
     assert messages == [
         {"role": "system", "content": "system\n\ntools"},

@@ -1,0 +1,13 @@
+FROM node:24-alpine
+
+WORKDIR /app
+
+COPY src/react_agent/frontend/package.json src/react_agent/frontend/package-lock.json ./
+
+RUN npm ci
+
+COPY src/react_agent/frontend/ ./
+
+EXPOSE 5173
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
