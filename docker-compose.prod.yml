@@ -1,0 +1,108 @@
+
+name: react_agent
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+      start_period: 5s
+
+  sandbox-image:
+    image: ghcr.io/megasear/workflow-automation-agent-sandbox:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["exit 0"]
+
+  my-default:
+    image: ghcr.io/megasear/workflow-automation-agent-my-default:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      SANDBOX_IMAGE: ghcr.io/megasear/workflow-automation-agent-sandbox:${IMAGE_TAG:?Set IMAGE_TAG}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      sandbox-image:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 15s
+
+  backend:
+    image: ghcr.io/megasear/workflow-automation-agent-backend:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      FRONTEND_URL: ${FRONTEND_URL:?Set FRONTEND_URL in .env}
+    expose:
+      - "8000"
+    volumes:
+      - ./secrets:/app/secrets:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      my-default:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  frontend:
+    image: ghcr.io/megasear/workflow-automation-agent-frontend:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:80"
+
+  prometheus:
+    image: prom/prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./src/react_agent/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+
+  grafana:
+    image: grafana/grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+    name: react_agent_postgres_data
+  prometheus_data:
+  grafana_data:

@@ -36,7 +36,7 @@ class LLMClient:
             "seed": settings.LLM_SEED,
             "reasoning_effort": settings.LLM_REASONING_EFFORT,
             "parallel_tool_calls": settings.LLM_PARALLEL_TOOL_CALLS,
-            "logprobs": True,
+            "logprobs": False,
             # Tools Usage
             "tools": tools,
             "tool_choice": "auto",
