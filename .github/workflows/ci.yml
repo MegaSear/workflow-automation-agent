@@ -68,13 +68,6 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Build frontend
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/frontend/Dockerfile
-          push: false
-
   docker-build:
     runs-on: ubuntu-latest
     needs:
