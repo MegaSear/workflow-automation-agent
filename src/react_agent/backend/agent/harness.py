@@ -138,12 +138,16 @@ class Harness:
 
                     messages.append(ai_message)
 
-                    for call, tool_call in zip(
-                        tool_calls, ai_message.tool_calls, strict=True
-                    ):
+                    for tool_call in ai_message.tool_calls:
+                        call_id = tool_call["id"]
+
+                        if call_id is None:
+                            raise RuntimeError("LLM returned tool call without an ID")
+
                         tool_message = await self._execute_tool(
                             mcp=mcp,
-                            call=call,
+                            name=tool_call["name"],
+                            call_id=call_id,
                             arguments=tool_call["args"],
                             tool_trace=tool_trace,
                         )
@@ -196,14 +200,13 @@ class Harness:
     async def _execute_tool(
         self,
         mcp: MCPManager,
-        call,
+        name: str,
+        call_id: str,
         arguments: dict,
         tool_trace: list[dict] | None = None,
     ) -> ToolMessage:
 
-        name = call.function.name
         metric_tool = name.split("__", maxsplit=1)[-1]
-
         started = perf_counter()
         status = "error"
 
@@ -237,5 +240,5 @@ class Harness:
 
         return ToolMessage(
             content=content,
-            tool_call_id=call.id,
+            tool_call_id=call_id,
         )
