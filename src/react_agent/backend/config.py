@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     LLM_SEED: int | None = Field(default=None, ge=0)
     LLM_REASONING_EFFORT: Literal["low", "medium", "high"] | None = None
     LLM_PARALLEL_TOOL_CALLS: bool = True
+    LLM_WARMUP_ENABLED: bool = False
 
     # FULLSTACK
     FRONTEND_URL: str | None

@@ -21,4 +21,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
 
-CMD ["uvicorn", "react_agent.backend.api.server:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "-m", "react_agent.backend.main"]

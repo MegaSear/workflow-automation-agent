@@ -22,7 +22,7 @@ class LLMClient:
         self,
         messages: Sequence[BaseMessage],
         tools: list[dict] = [],
-    ):
+    ) -> ChatCompletion:
         request = {
             # Base
             "model": self._model,
@@ -47,17 +47,24 @@ class LLMClient:
         )
         return response
 
-    def warmup(self, cache_prompt: str) -> ChatCompletion:
-        response = self._client.chat.completions.create(
-            model=self._model,
-            messages=[
+    def warmup(
+        self,
+        messages: Sequence[BaseMessage],
+    ) -> ChatCompletion:
+
+        request = {
+            "model": self._model,
+            "messages": [
                 {
                     "role": "system",
-                    "content": cache_prompt,
+                    "content": convert_to_openai_messages(messages),
                 }
             ],
-            max_tokens=1,
-            temperature=0,
+            "max_tokens": 1,
+            "temperature": 0,
+        }
+        response = self._client.chat.completions.create(
+            **request,
         )
         if not response.choices:
             raise RuntimeError("LLM warmup returned no choices")

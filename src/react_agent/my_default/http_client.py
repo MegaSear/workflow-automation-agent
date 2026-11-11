@@ -1,9 +1,13 @@
 import http.client
 import ipaddress
+import logging
 import socket
 from urllib.parse import urlsplit
 
 from react_agent.my_default.config import settings
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 
 def get(url: str) -> str:
@@ -53,12 +57,10 @@ def get(url: str) -> str:
     if parsed.query:
         path += "?" + parsed.query
 
-    # Logging
-    print(f"[HTTP] URL: {url}")
-    print(
+    logger.info(f"[HTTP] URL: {url}")
+    logger.info(
         f"[HTTP] Endpoint: host={parsed.hostname!r}, port={parsed.port}, pinned_ip={ip}"
     )
-
     connection = _PinnedHTTPSConnection(
         parsed.hostname,
         pinned_ip=ip,
