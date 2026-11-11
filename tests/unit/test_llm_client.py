@@ -41,7 +41,7 @@ def test_generate_without_tools(mock_openai):
         seed=None,
         reasoning_effort=None,
         parallel_tool_calls=True,
-        logprobs=True,
+        logprobs=False,
         tools=[],
         tool_choice="auto",
     )
@@ -83,7 +83,7 @@ def test_generate_with_tools(mock_openai):
         seed=None,
         reasoning_effort=None,
         parallel_tool_calls=True,
-        logprobs=True,
+        logprobs=False,
         tools=tools,
         tool_choice="auto",
     )
@@ -138,7 +138,7 @@ def test_generate_forwards_configured_sampling_parameters(mock_openai, monkeypat
         seed=7,
         reasoning_effort="low",
         parallel_tool_calls=True,
-        logprobs=True,
+        logprobs=False,
         tools=[],
         tool_choice="auto",
     )
@@ -170,7 +170,7 @@ def test_generate_with_empty_tools_does_not_send_tools(mock_openai):
         seed=None,
         reasoning_effort=None,
         parallel_tool_calls=True,
-        logprobs=True,
+        logprobs=False,
         tools=[],
         tool_choice="auto",
     )
