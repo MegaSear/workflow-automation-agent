@@ -1,6 +1,11 @@
+import os
 import subprocess
 
-SANDBOX_IMAGE = "react-agent-sandbox:latest"
+SANDBOX_IMAGE = os.getenv(
+    "SANDBOX_IMAGE",
+    "react-agent-sandbox:latest",
+)
+
 CONTAINER_WORKDIR = "/workspace"
 WORKSPACE_VOLUME_PREFIX = "react-agent-workspace-user-"
 

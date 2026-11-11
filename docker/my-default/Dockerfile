@@ -6,10 +6,11 @@ RUN apt-get update \
 	&& apt-get install -y --no-install-recommends docker-cli \
 	&& rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock ./
 COPY src ./src
+COPY config ./config
 
 RUN uv sync --frozen --no-dev
 

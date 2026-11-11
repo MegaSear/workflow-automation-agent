@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+
+# Red teaming configuration
+
+# Docs: https://promptfoo.dev/docs/red-team/configuration
+description: "Red team"
+
+targets:
+  - id: https
+    label: "WorkflowAgent"
+    config:
+      url: "http://localhost:8000/api/chat"
+      method: "POST"
+      headers:
+        Content-Type: "application/json"
+        Authorization: "Bearer {{env.REACT_AGENT_JWT}}"
+      body:
+        message: "{{prompt}}"
+      
+
+# Other redteam settings
+redteam:
+  numTests: 3
+
+  plugins:
+    - hijacking
+    - excessive-agency
+    - pii:direct
+    - pii:api-db
+    - pii:session
+    - harmful:cybercrime
+
+  strategies:
+    - basic

@@ -7,5 +7,5 @@ def load_system_prompt() -> str:
     return (PROMPT_DIR / "system.txt").read_text(encoding="utf-8")
 
 
-def load_tools_prompt() -> str:
-    return (PROMPT_DIR / "tools.txt").read_text(encoding="utf-8")
+def load_tools_policy_prompt() -> str:
+    return (PROMPT_DIR / "tools_policy.txt").read_text(encoding="utf-8")

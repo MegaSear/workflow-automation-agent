@@ -168,17 +168,17 @@ export function useChat(token, logout) {
       }
       setMessages(normalizeMessages(history));
     } catch (error) {
-        if (viewVersionRef.current !== nextVersion) {
-          return;
-        }
-
-        if (error.status === 401) {
-          logout();
-          return;
-        }
-
-        console.error("Не удалось загрузить следующий диалог:", error);
+      if (viewVersionRef.current !== nextVersion) {
+        return;
       }
+
+      if (error.status === 401) {
+        logout();
+        return;
+      }
+
+      console.error("Не удалось загрузить следующий диалог:", error);
+    }
   }
 
   async function handleRenameConversation(id, title) {

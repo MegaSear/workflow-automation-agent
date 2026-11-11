@@ -31,3 +31,19 @@ TOOL_DURATION = Histogram(
     "agent_tool_duration_seconds",
     "Duration of tool calls",
 )
+
+LLM_PROMPT_TOKENS = Counter(
+    "llm_prompt_tokens_total",
+    "Total prompt tokens consumed",
+)
+
+LLM_COMPLETION_TOKENS = Counter(
+    "llm_completion_tokens_total",
+    "Total completion tokens generated",
+)
+
+LLM_FINISH_REASONS = Counter(
+    "llm_finish_reasons_total",
+    "Number of LLM responses by finish reason",
+    ["reason"],
+)

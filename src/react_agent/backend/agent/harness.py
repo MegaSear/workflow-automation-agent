@@ -3,6 +3,7 @@ import json
 import logging
 from time import perf_counter
 
+from langchain_core.messages import AIMessage, ToolMessage
 from sqlalchemy.orm import Session
 
 from react_agent.backend.agent.agent import Agent
@@ -15,6 +16,9 @@ from react_agent.backend.observability.metrics import (
     AGENT_ACTIVE_RUNS,
     AGENT_RUN_DURATION,
     AGENT_RUNS,
+    LLM_COMPLETION_TOKENS,
+    LLM_FINISH_REASONS,
+    LLM_PROMPT_TOKENS,
     TOOL_CALLS,
     TOOL_DURATION,
 )
@@ -70,11 +74,12 @@ class Harness:
                 workspace_id=workspace_id,
                 user_id=user_id,
             )
+
             tool_allowlists = {
-                server_name: set(spec["tool_allowlist"])
-                for server_name, spec in server_specs.items()
+                name: set(spec["tool_allowlist"])
+                for name, spec in server_specs.items()
                 if isinstance(spec.get("tool_allowlist"), list)
-                and all(isinstance(name, str) for name in spec["tool_allowlist"])
+                and all(isinstance(item, str) for item in spec["tool_allowlist"])
             }
 
             async with MCPManager(
@@ -89,100 +94,130 @@ class Harness:
 
                 for step in range(self._max_tool_rounds + 1):
                     tools = mcp.get_openai_tools()
-                    logger.warning(
-                        "LLM payload: messages=%d, tools=%d, tool_names=%s",
-                        len(messages),
-                        len(tools),
-                        [tool["function"]["name"] for tool in tools],
-                    )
-                    message = self._agent.generate(
+
+                    response = self._agent.generate(
                         messages=messages,
                         tools=tools,
                     )
 
-                    tool_calls = message.tool_calls
+                    self._record_llm_metrics(response)
 
-                    if not tool_calls:
+                    choice = response.choices[0]
+                    message = choice.message
+
+                    finish_reason = choice.finish_reason
+                    tool_calls = choice.message.tool_calls
+
+                    if finish_reason == "stop":
                         run_status = "success"
                         return message.content or ""
 
-                    if step == self._max_tool_rounds:
-                        run_status = "limit"
-                        return "Превышен лимит вызовов инструментов."
+                    if finish_reason == "length":
+                        run_status = "incomplete"
+                        return message.content or "LLM response was truncated."
 
-                    messages.append(
-                        {
-                            "role": "assistant",
-                            "content": message.content,
-                            "tool_calls": [
-                                {
-                                    "id": call.id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": call.function.name,
-                                        "arguments": call.function.arguments,
-                                    },
-                                }
-                                for call in tool_calls
-                            ],
-                        }
-                    )
+                    if finish_reason == "content_filter":
+                        run_status = "filtered"
+                        return "Ответ заблокирован фильтром содержимого."
 
-                    for call in tool_calls:
-                        name = call.function.name
+                    if finish_reason != "tool_calls":
+                        raise RuntimeError(f"Unexpected finish reason: {finish_reason}")
 
-                        original_name = name.split("__", maxsplit=1)[-1]
-                        metric_tool = original_name
-
-                        tool_started = perf_counter()
-                        tool_status = "error"
-                        trace_entry = None
-                        if tool_trace is not None:
-                            trace_entry = {
-                                "name": name,
-                                "status": "running",
-                            }
-                            tool_trace.append(trace_entry)
-
-                        try:
-                            arguments = json.loads(call.function.arguments or "{}")
-
-                            if not isinstance(arguments, dict):
-                                raise ValueError("Tool arguments must be a JSON object")
-
-                            result = await mcp.call_tool(
-                                name=name,
-                                arguments=arguments,
-                            )
-
-                            content = str(result)
-                            tool_status = "success"
-
-                        except Exception as error:
-                            content = f"Tool error: {error}"
-
-                        finally:
-                            TOOL_CALLS.labels(
-                                tool=metric_tool,
-                                status=tool_status,
-                            ).inc()
-
-                            TOOL_DURATION.observe(perf_counter() - tool_started)
-                            if trace_entry is not None:
-                                trace_entry["status"] = tool_status
-
-                        messages.append(
-                            {
-                                "role": "tool",
-                                "tool_call_id": call.id,
-                                "content": content,
-                            }
+                    if not tool_calls:
+                        raise RuntimeError(
+                            "LLM returned tool_calls finish_reason without tool calls"
                         )
+
+                    messages.append(self._build_ai_message(message))
+
+                    for call in message.tool_calls:
+                        tool_message = await self._execute_tool(
+                            mcp=mcp,
+                            call=call,
+                            tool_trace=tool_trace,
+                        )
+                        messages.append(tool_message)
 
                 return "Не удалось завершить выполнение."
 
         finally:
             AGENT_ACTIVE_RUNS.dec()
-
             AGENT_RUNS.labels(status=run_status).inc()
             AGENT_RUN_DURATION.observe(perf_counter() - started)
+
+    @staticmethod
+    def _record_llm_metrics(response) -> None:
+        usage = response.usage
+
+        if usage is not None:
+            LLM_PROMPT_TOKENS.inc(usage.prompt_tokens)
+            LLM_COMPLETION_TOKENS.inc(usage.completion_tokens)
+
+        finish_reason = response.choices[0].finish_reason or "unknown"
+        LLM_FINISH_REASONS.labels(reason=finish_reason).inc()
+
+    @staticmethod
+    def _build_ai_message(message) -> AIMessage:
+        return AIMessage(
+            content=message.content or "",
+            tool_calls=[
+                {
+                    "name": call.function.name,
+                    "args": json.loads(call.function.arguments or "{}"),
+                    "id": call.id,
+                    "type": "tool_call",
+                }
+                for call in message.tool_calls
+            ],
+        )
+
+    async def _execute_tool(
+        self,
+        mcp: MCPManager,
+        call,
+        tool_trace: list[dict] | None = None,
+    ) -> ToolMessage:
+
+        name = call.function.name
+        metric_tool = name.split("__", maxsplit=1)[-1]
+
+        started = perf_counter()
+        status = "error"
+
+        trace_entry = None
+        if tool_trace is not None:
+            trace_entry = {"name": name, "status": "running"}
+            tool_trace.append(trace_entry)
+
+        try:
+            arguments = json.loads(call.function.arguments or "{}")
+
+            if not isinstance(arguments, dict):
+                raise ValueError("Tool arguments must be a JSON object")
+
+            result = await mcp.call_tool(
+                name=name,
+                arguments=arguments,
+            )
+
+            content = str(result)
+            status = "success"
+
+        except Exception as error:
+            content = f"Tool error: {error}"
+
+        finally:
+            TOOL_CALLS.labels(
+                tool=metric_tool,
+                status=status,
+            ).inc()
+
+            TOOL_DURATION.observe(perf_counter() - started)
+
+            if trace_entry is not None:
+                trace_entry["status"] = status
+
+        return ToolMessage(
+            content=content,
+            tool_call_id=call.id,
+        )
