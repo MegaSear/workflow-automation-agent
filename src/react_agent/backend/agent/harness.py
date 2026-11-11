@@ -74,7 +74,7 @@ class Harness:
                 workspace_id=workspace_id,
                 user_id=user_id,
             )
-
+            db.rollback()
             tool_allowlists = {
                 name: set(spec["tool_allowlist"])
                 for name, spec in server_specs.items()
@@ -128,12 +128,23 @@ class Harness:
                             "LLM returned tool_calls finish_reason without tool calls"
                         )
 
-                    messages.append(self._build_ai_message(message))
+                    try:
+                        ai_message = self._build_ai_message(message)
+                    except (json.JSONDecodeError, ValueError) as error:
+                        logger.warning("Invalid tool call arguments: %s", error)
+                        raise RuntimeError(
+                            "LLM returned invalid tool call arguments"
+                        ) from error
 
-                    for call in message.tool_calls:
+                    messages.append(ai_message)
+
+                    for call, tool_call in zip(
+                        tool_calls, ai_message.tool_calls, strict=True
+                    ):
                         tool_message = await self._execute_tool(
                             mcp=mcp,
                             call=call,
+                            arguments=tool_call["args"],
                             tool_trace=tool_trace,
                         )
                         messages.append(tool_message)
@@ -158,23 +169,35 @@ class Harness:
 
     @staticmethod
     def _build_ai_message(message) -> AIMessage:
-        return AIMessage(
-            content=message.content or "",
-            tool_calls=[
+        tool_calls = []
+
+        for call in message.tool_calls:
+            arguments = json.loads(call.function.arguments or "{}")
+
+            if not isinstance(arguments, dict):
+                raise ValueError(
+                    f"Tool arguments must be a JSON object: {call.function.name}"
+                )
+
+            tool_calls.append(
                 {
                     "name": call.function.name,
-                    "args": json.loads(call.function.arguments or "{}"),
+                    "args": arguments,
                     "id": call.id,
                     "type": "tool_call",
                 }
-                for call in message.tool_calls
-            ],
+            )
+
+        return AIMessage(
+            content=message.content or "",
+            tool_calls=tool_calls,
         )
 
     async def _execute_tool(
         self,
         mcp: MCPManager,
         call,
+        arguments: dict,
         tool_trace: list[dict] | None = None,
     ) -> ToolMessage:
 
@@ -190,11 +213,6 @@ class Harness:
             tool_trace.append(trace_entry)
 
         try:
-            arguments = json.loads(call.function.arguments or "{}")
-
-            if not isinstance(arguments, dict):
-                raise ValueError("Tool arguments must be a JSON object")
-
             result = await mcp.call_tool(
                 name=name,
                 arguments=arguments,
