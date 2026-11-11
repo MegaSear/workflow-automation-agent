@@ -49,7 +49,7 @@ from react_agent.backend.integrations.oauth_state import (
     save_google_oauth_state,
 )
 from react_agent.backend.llm.client import LLMClient
-from react_agent.backend.llm.prompts import load_system_prompt, load_tools_prompt
+from react_agent.backend.llm.prompts import load_system_prompt, load_tools_policy_prompt
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -125,7 +125,7 @@ async def lifespan(app: FastAPI):
         # Create KV-cache on warmup
         logger.info("Starting LLM warmup")
         system_prompt = load_system_prompt()
-        tools_prompt = load_tools_prompt()
+        tools_prompt = load_tools_policy_prompt()
         context = system_prompt + "\n\n" + tools_prompt
         logger.info("Warmup context length: %d characters", len(context))
         response = llm_client.warmup(context)
