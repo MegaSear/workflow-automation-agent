@@ -65,7 +65,7 @@ MCP Manager загружает конфигурацию серверов из `s
 | Область | Технологии |
 |---|---|
 | Backend | Python, FastAPI, SQLAlchemy |
-| Frontend | React, JavaScript, Vite |
+| Frontend | React, JavaScript, Vite, Nginx |
 | LLM | OpenAI-compatible API, OpenAI Python SDK |
 | Agent Tools | Model Context Protocol (MCP) |
 | Database | PostgreSQL |
@@ -160,6 +160,13 @@ docker compose up --build -d --wait
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3000 |
 
+> **Grafana credentials (first launch):**
+>
+> - Username: `admin`
+> - Password: `admin`
+>
+> При первом входе Grafana предложит сменить пароль.
+
 Для остановки:
 
 ```powershell
@@ -168,7 +175,7 @@ docker compose down
 
 Данные PostgreSQL сохраняются в Docker volume и не удаляются при обычной остановке Compose.
 
-> **Важно:** Backend и `my-default` используют Docker socket для запуска sandbox-контейнеров. Это предоставляет им доступ к Docker daemon. Используйте конфигурацию только на доверенной машине.
+> **Важно:** Docker socket смонтирован только в собственный `docker-proxy`. Он разрешает ограниченный набор Docker API-маршрутов и проверяет образ, команды и параметры sandbox-контейнера. Сам Docker socket остаётся привилегированным интерфейсом; запускайте конфигурацию только на доверенной машине.
 
 ## Интеграции
 
@@ -210,6 +217,7 @@ GitHub MCP использует allowlist инструментов для огр
 Вместо локальной сборки используются Docker images из GitHub Container Registry:
 
 - `ghcr.io/megasear/workflow-automation-agent-backend`
+- `ghcr.io/megasear/workflow-automation-agent-docker-proxy`
 - `ghcr.io/megasear/workflow-automation-agent-frontend`
 - `ghcr.io/megasear/workflow-automation-agent-my-default`
 - `ghcr.io/megasear/workflow-automation-agent-sandbox`

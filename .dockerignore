@@ -1,5 +1,6 @@
 .git
 .venv
+.vscode
 __pycache__
 **/__pycache__
 .pytest_cache
@@ -10,5 +11,6 @@ __pycache__
 secrets
 tests
 docs
+scripts
 **/node_modules
 **/dist

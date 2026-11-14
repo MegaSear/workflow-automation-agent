@@ -22,16 +22,41 @@ from react_agent.backend.observability.metrics import (
     TOOL_CALLS,
     TOOL_DURATION,
 )
+from react_agent.backend.tools.memory.tools import MemoryTools
 
 logger = logging.getLogger(__name__)
 
 
+def prepare_mcp_clients(db, workspace_id, user_id):
+    server_specs = load_mcp_server_specs()
+    remote_clients = create_mcp_client_factories(
+        server_specs,
+        db=db,
+        workspace_id=workspace_id,
+        user_id=user_id,
+    )
+    tool_allowlists = {
+        name: set(spec["tool_allowlist"])
+        for name, spec in server_specs.items()
+        if isinstance(spec.get("tool_allowlist"), list)
+        and all(isinstance(item, str) for item in spec["tool_allowlist"])
+    }
+    db.rollback()
+    return remote_clients, tool_allowlists
+
+
 class Harness:
-    def __init__(self, agent: Agent, max_tool_rounds: int = 4):
+    def __init__(
+        self,
+        agent: Agent,
+        max_tool_rounds: int = 4,
+        memory_tools: MemoryTools | None = None,
+    ):
         self._agent = agent
         self._max_tool_rounds = max_tool_rounds
+        self._memory_tools = memory_tools
 
-    def run(
+    async def run(
         self,
         history: list[dict],
         user_input: str,
@@ -41,15 +66,13 @@ class Harness:
         db: Session,
         tool_trace: list[dict] | None = None,
     ) -> str:
-        return asyncio.run(
-            self._run_async(
-                history=history,
-                user_input=user_input,
-                workspace_id=workspace_id,
-                user_id=user_id,
-                db=db,
-                tool_trace=tool_trace,
-            )
+        return await self._run_async(
+            history=history,
+            user_input=user_input,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            db=db,
+            tool_trace=tool_trace,
         )
 
     async def _run_async(
@@ -72,20 +95,12 @@ class Harness:
             self._max_tool_rounds,
         )
         try:
-            server_specs = load_mcp_server_specs()
-            remote_clients = create_mcp_client_factories(
-                server_specs,
-                db=db,
-                workspace_id=workspace_id,
-                user_id=user_id,
+            remote_clients, tool_allowlists = await asyncio.to_thread(
+                prepare_mcp_clients,
+                db,
+                workspace_id,
+                user_id,
             )
-            db.rollback()
-            tool_allowlists = {
-                name: set(spec["tool_allowlist"])
-                for name, spec in server_specs.items()
-                if isinstance(spec.get("tool_allowlist"), list)
-                and all(isinstance(item, str) for item in spec["tool_allowlist"])
-            }
 
             async with MCPManager(
                 servers={},
@@ -99,6 +114,9 @@ class Harness:
 
                 for step in range(self._max_tool_rounds + 1):
                     tools = mcp.get_openai_tools()
+
+                    if self._memory_tools:
+                        tools += self._memory_tools.get_openai_tools()
 
                     logger.info(
                         "LLM request started: step=%s messages=%s tools=%s",
@@ -125,7 +143,8 @@ class Harness:
                             default=str,
                         ),
                     )
-                    response = self._agent.generate(
+                    response = await asyncio.to_thread(
+                        self._agent.generate,
                         messages=messages,
                         tools=tools,
                     )
@@ -187,6 +206,7 @@ class Harness:
                             call_id=call_id,
                             arguments=tool_call["args"],
                             tool_trace=tool_trace,
+                            user_id=user_id,
                         )
                         messages.append(tool_message)
 
@@ -255,6 +275,7 @@ class Harness:
         call_id: str,
         arguments: dict,
         tool_trace: list[dict] | None = None,
+        user_id: int = 0,
     ) -> ToolMessage:
 
         metric_tool = name.split("__", maxsplit=1)[-1]
@@ -272,12 +293,20 @@ class Harness:
             call_id,
         )
         try:
-            result = await mcp.call_tool(
-                name=name,
-                arguments=arguments,
-            )
+            if self._memory_tools and name.startswith("memory__"):
+                content = await asyncio.to_thread(
+                    self._memory_tools.execute,
+                    name=name,
+                    arguments=arguments,
+                    user_id=user_id,
+                )
+            else:
+                result = await mcp.call_tool(
+                    name=name,
+                    arguments=arguments,
+                )
+                content = str(result)
 
-            content = str(result)
             status = "success"
 
         except Exception:

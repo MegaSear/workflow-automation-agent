@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 FROM python:3.12-slim
 
 WORKDIR /app
@@ -9,11 +11,16 @@ RUN apt-get update \
 COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock ./
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
+
 COPY src ./src
 COPY config ./config
 
-RUN uv sync --frozen --no-dev
-
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+	
 ENV PYTHONPATH=/app/src
 
 EXPOSE 8001

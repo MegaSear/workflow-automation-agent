@@ -1,8 +1,14 @@
 name: react_agent
 
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -18,6 +24,7 @@ services:
       timeout: 3s
       retries: 15
       start_period: 5s
+    logging: *default-logging
 
   backend:
     build:
@@ -52,6 +59,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    logging: *default-logging
 
   sandbox-image:
     image: react-agent-sandbox:latest
@@ -69,11 +77,17 @@ services:
     env_file:
       - .env
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
       - ./config:/app/config:ro
+    environment:
+      DOCKER_HOST: tcp://docker-proxy:2375
+    networks:
+      - default
+      - docker_proxy
     depends_on:
       sandbox-image:
         condition: service_completed_successfully
+      docker-proxy:
+        condition: service_healthy
     healthcheck:
       test:
         - CMD
@@ -84,6 +98,7 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    logging: *default-logging
 
   frontend:
     build:
@@ -97,6 +112,29 @@ services:
     volumes:
       - ./src/react_agent/frontend:/app
       - frontend_node_modules:/app/node_modules
+    logging: *default-logging
+
+  docker-proxy:
+    build:
+      context: .
+      dockerfile: docker/docker-proxy/Dockerfile
+    restart: unless-stopped
+    environment:
+      SANDBOX_IMAGE: react-agent-sandbox:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - docker_proxy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:2375/_ping', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    logging: *default-logging
 
   vllm:
     build:
@@ -123,6 +161,8 @@ services:
       timeout: 10s
       retries: 5
       start_period: 300s
+    logging: *default-logging
+
   prometheus:
     image: prom/prometheus
     restart: unless-stopped
@@ -152,3 +192,8 @@ volumes:
   frontend_node_modules:
   vllm_cache:
     name: react_agent_vllm_cache
+
+networks:
+  default: {}
+  docker_proxy:
+    internal: true

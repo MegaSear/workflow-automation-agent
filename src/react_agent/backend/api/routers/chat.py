@@ -114,11 +114,8 @@ def get_chat_progress(
         return ChatProgressResponse(tool_trace=list(active_trace[1]))
 
 
-@router.post(
-    "",
-    response_model=ChatResponse,
-)
-def chat(
+@router.post("", response_model=ChatResponse)
+async def chat(
     request: ChatRequest,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
@@ -185,7 +182,7 @@ def chat(
 
     try:
         try:
-            response = harness.run(
+            response = await harness.run(
                 history=history,
                 user_input=request.message,
                 workspace_id=user_id,

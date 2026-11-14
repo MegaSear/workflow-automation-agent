@@ -15,6 +15,16 @@ from unittest.mock import MagicMock, patch
 from react_agent.backend.llm.client import LLMClient
 
 
+def _create_client():
+    return LLMClient(
+        api_key="test-key",
+        base_url="https://llm.example.test/v1",
+        max_retries=2,
+        timeout=30.0,
+        llm_model="test-model",
+    )
+
+
 @patch("react_agent.backend.llm.client.OpenAI")
 def test_generate_without_tools(mock_openai):
     mock_client = MagicMock()
@@ -24,12 +34,17 @@ def test_generate_without_tools(mock_openai):
     expected_response.choices = [MagicMock(message=MagicMock())]
     mock_client.chat.completions.create.return_value = expected_response
 
-    client = LLMClient()
+    client = _create_client()
     messages = [{"role": "user", "content": "Hello"}]
 
     result = client.generate(messages)
 
-    mock_openai.assert_called_once()
+    mock_openai.assert_called_once_with(
+        api_key="test-key",
+        base_url="https://llm.example.test/v1",
+        max_retries=2,
+        timeout=30.0,
+    )
     mock_client.chat.completions.create.assert_called_once_with(
         model=client._model,
         messages=messages,
@@ -57,7 +72,7 @@ def test_generate_with_tools(mock_openai):
     expected_response.choices = [MagicMock(message=MagicMock())]
     mock_client.chat.completions.create.return_value = expected_response
 
-    client = LLMClient()
+    client = _create_client()
     messages = [{"role": "user", "content": "Search for a file"}]
     tools = [
         {
@@ -122,7 +137,7 @@ def test_generate_forwards_configured_sampling_parameters(mock_openai, monkeypat
         "low",
     )
 
-    client = LLMClient()
+    client = _create_client()
     messages = [{"role": "user", "content": "Hello"}]
 
     client.generate(messages)
@@ -152,7 +167,7 @@ def test_generate_with_empty_tools_does_not_send_tools(mock_openai):
     expected_response.choices = [MagicMock(message="response")]
     mock_client.chat.completions.create.return_value = expected_response
 
-    client = LLMClient()
+    client = _create_client()
 
     result = client.generate(
         [{"role": "user", "content": "Hello"}],

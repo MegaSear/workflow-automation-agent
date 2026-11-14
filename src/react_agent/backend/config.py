@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     LLM_PARALLEL_TOOL_CALLS: bool = True
     LLM_WARMUP_ENABLED: bool = False
     MAX_TOOL_ROUNDS: int = 10
+    LLM_TIMEOUT: float = 120.0
+    LLM_MAX_RETRIES: int = 0
 
     # Components
     FRONTEND_URL: str | None
@@ -61,6 +63,23 @@ class Settings(BaseSettings):
     # Internal MCP service
     GOOGLE_CALENDAR_MCP_URL: str | None
     GITHUB_MCP_URL: str | None
+
+    # Episodic Memory
+    EPISODIC_MEMORY_EMBEDDING_DIMENSION: int = 384
+
+    HNSW_M: int = 16
+    HNSW_EF_CONSTRUCTION: int = 64
+    HNSW_EF_SEARCH: int = 100
+
+    EMBEDDING_BASE_URL: str | None = None
+    EMBEDDING_API_KEY: str | None = None
+
+    EMBEDDING_QUERY_PREFIX: str = "query: "
+    EMBEDDING_DOCUMENT_PREFIX: str = "passage: "
+
+    EMBEDDING_PROVIDER: str = "sentence_transformers"
+    EMBEDDING_MODEL: str = "intfloat/multilingual-e5-small"
+    EMBEDDING_DEVICE: str = "cpu"
 
     @field_validator("JWT_SECRET_KEY")
     @classmethod

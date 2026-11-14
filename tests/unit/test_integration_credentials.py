@@ -3,7 +3,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from react_agent.backend.config import settings
-from react_agent.backend.db.models import Base, User, UserIntegration
+from react_agent.backend.db.database import Base
+from react_agent.backend.db.models import User, UserIntegration
 from react_agent.backend.integrations.credentials import (
     delete_credentials,
     get_credentials,

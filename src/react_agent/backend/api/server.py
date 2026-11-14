@@ -11,16 +11,36 @@ from react_agent.backend.agent.agent import Agent
 from react_agent.backend.agent.harness import Harness
 from react_agent.backend.api.routers import auth, chat, conversations, integrations
 from react_agent.backend.config import settings
-from react_agent.backend.db.database import Base, engine
+from react_agent.backend.db.database import Base, SessionLocal, engine
 from react_agent.backend.llm.client import LLMClient
+from react_agent.backend.services.embedding_client import EmbeddingClient
+from react_agent.backend.services.memory_service import MemoryService
+from react_agent.backend.tools.memory.tools import MemoryTools
 
 logger = logging.getLogger(__name__)
 
 
 # Agent setup
-llm_client = LLMClient()
+
+
+llm_client = LLMClient(
+    api_key=settings.LLM_API_KEY,
+    base_url=settings.LLM_BASE_URL,
+    max_retries=settings.LLM_MAX_RETRIES,
+    timeout=settings.LLM_TIMEOUT,
+    llm_model=settings.LLM_MODEL,
+)
 agent = Agent(llm_client)
-harness = Harness(agent, max_tool_rounds=settings.MAX_TOOL_ROUNDS)
+
+embedding_client = EmbeddingClient()
+memory_service = MemoryService(SessionLocal, embedding_client)
+memory_tools = MemoryTools(memory_service)
+
+harness = Harness(
+    agent,
+    max_tool_rounds=settings.MAX_TOOL_ROUNDS,
+    memory_tools=memory_tools,
+)
 
 
 def _ensure_message_tool_trace_column(database_engine: Engine = engine) -> None:
@@ -62,6 +82,7 @@ async def lifespan(app: FastAPI):
             logger.info(f"LLM warmup completed with response: {response}")
         except Exception:
             logger.exception("LLM warmup failed")
+            raise
     else:
         logger.info("LLM warmup disabled")
 

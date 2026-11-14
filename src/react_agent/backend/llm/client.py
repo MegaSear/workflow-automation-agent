@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Sequence
 
 from langchain_core.messages import (
@@ -9,14 +10,18 @@ from openai.types.chat import ChatCompletion
 
 from react_agent.backend.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 class LLMClient:
-    def __init__(self):
+    def __init__(self, api_key, base_url, max_retries, timeout, llm_model):
         self._client = OpenAI(
-            api_key=settings.LLM_API_KEY,
-            base_url=settings.LLM_BASE_URL,
+            api_key=api_key,
+            base_url=base_url,
+            max_retries=max_retries,
+            timeout=timeout,
         )
-        self._model = settings.LLM_MODEL
+        self._model = llm_model
 
     def generate(
         self,
@@ -54,12 +59,7 @@ class LLMClient:
 
         request = {
             "model": self._model,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": convert_to_openai_messages(messages),
-                }
-            ],
+            "messages": convert_to_openai_messages(messages),
             "max_tokens": 1,
             "temperature": 0,
         }

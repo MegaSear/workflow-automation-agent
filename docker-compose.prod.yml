@@ -3,7 +3,7 @@ name: react_agent
 
 services:
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -24,6 +24,25 @@ services:
     entrypoint: ["/bin/sh", "-c"]
     command: ["exit 0"]
 
+  docker-proxy:
+    image: ghcr.io/megasear/workflow-automation-agent-docker-proxy:${IMAGE_TAG:?Set IMAGE_TAG}
+    restart: unless-stopped
+    environment:
+      SANDBOX_IMAGE: ghcr.io/megasear/workflow-automation-agent-sandbox:${IMAGE_TAG:?Set IMAGE_TAG}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - docker_proxy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:2375/_ping', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   my-default:
     image: ghcr.io/megasear/workflow-automation-agent-my-default:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
@@ -31,11 +50,16 @@ services:
       - .env
     environment:
       SANDBOX_IMAGE: ghcr.io/megasear/workflow-automation-agent-sandbox:${IMAGE_TAG:?Set IMAGE_TAG}
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
+      DOCKER_HOST: tcp://docker-proxy:2375
+    volumes: []
     depends_on:
       sandbox-image:
         condition: service_completed_successfully
+      docker-proxy:
+        condition: service_healthy      
+    networks:
+      - default
+      - docker_proxy
     healthcheck:
       test:
         - CMD
@@ -80,7 +104,7 @@ services:
     image: ghcr.io/megasear/workflow-automation-agent-frontend:${IMAGE_TAG:?Set IMAGE_TAG}
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8080:80"
+      - "80:80"
 
   prometheus:
     image: prom/prometheus
@@ -106,3 +130,9 @@ volumes:
     name: react_agent_postgres_data
   prometheus_data:
   grafana_data:
+
+
+networks:
+  default: {}
+  docker_proxy:
+    internal: true

@@ -25,8 +25,11 @@ from cryptography.fernet import Fernet
 from google.auth.exceptions import RefreshError
 from openai import APIConnectionError, APIStatusError, APITimeoutError
 from sqlalchemy import create_engine, inspect
+from sqlalchemy.orm import Session
 
 from react_agent.backend.api import server
+from react_agent.backend.api.routers import chat as chat_router
+from react_agent.backend.api.routers import integrations as integrations_router
 from react_agent.backend.api.server import app
 from react_agent.backend.auth.auth import get_current_user, hash_password
 from react_agent.backend.config import settings
@@ -215,7 +218,7 @@ def test_chat_creates_conversation_and_saves_messages(
 ):
     """A new chat creates a conversation and saves both messages."""
 
-    def fake_run(history, user_input, *, workspace_id, user_id, db, tool_trace):
+    async def fake_run(history, user_input, *, workspace_id, user_id, db, tool_trace):
         assert history == []
         assert user_input == "Hello"
         assert workspace_id == test_user.id
@@ -279,14 +282,14 @@ def test_chat_progress_returns_active_trace(
     trace = [{"name": "my_default__get_current_time", "status": "running"}]
     key = str(trace_id)
 
-    with server._active_chat_traces_lock:
-        server._active_chat_traces[key] = (test_user.id, trace)
+    with chat_router._active_chat_traces_lock:
+        chat_router._active_chat_traces[key] = (test_user.id, trace)
 
     try:
         response = authenticated_client.get(f"/api/chat/{trace_id}/progress")
     finally:
-        with server._active_chat_traces_lock:
-            server._active_chat_traces.pop(key, None)
+        with chat_router._active_chat_traces_lock:
+            chat_router._active_chat_traces.pop(key, None)
 
     assert response.status_code == 200
     assert response.json() == {"tool_trace": trace, "running": True}
@@ -401,7 +404,7 @@ def test_chat_returns_details_when_saving_messages_fails(
     authenticated_client,
     monkeypatch,
 ):
-    original_commit = server.Session.commit
+    original_commit = Session.commit
     commit_count = 0
 
     def fail_when_saving_messages(session):
@@ -411,8 +414,12 @@ def test_chat_returns_details_when_saving_messages_fails(
             raise RuntimeError("database is unavailable")
         original_commit(session)
 
-    monkeypatch.setattr(server.Session, "commit", fail_when_saving_messages)
-    monkeypatch.setattr(server.harness, "run", lambda *args, **kwargs: "Hello")
+    monkeypatch.setattr(Session, "commit", fail_when_saving_messages)
+
+    async def fake_run(*args, **kwargs):
+        return "Hello"
+
+    monkeypatch.setattr(server.harness, "run", fake_run)
 
     result = authenticated_client.post(
         "/api/chat",
@@ -489,7 +496,7 @@ def test_chat_passes_existing_history_to_agent(
         },
     ]
 
-    def fake_run(history, user_input, *, workspace_id, user_id, db, tool_trace):
+    async def fake_run(history, user_input, *, workspace_id, user_id, db, tool_trace):
         assert history == expected_history
         assert user_input == "What is my name?"
         assert workspace_id == test_user.id
@@ -556,7 +563,11 @@ def test_connect_jira_validates_and_encrypts_credentials(
     async def valid_jira_credentials(credentials):
         return True
 
-    monkeypatch.setattr(server, "validate_jira_credentials", valid_jira_credentials)
+    monkeypatch.setattr(
+        integrations_router,
+        "validate_jira_credentials",
+        valid_jira_credentials,
+    )
 
     response = authenticated_client.put(
         "/api/integrations/jira",
@@ -589,7 +600,11 @@ def test_connect_github_encrypts_user_token(
         "INTEGRATION_ENCRYPTION_KEY",
         Fernet.generate_key().decode("ascii"),
     )
-    monkeypatch.setattr(server, "validate_github_token", lambda token: True)
+    monkeypatch.setattr(
+        integrations_router,
+        "validate_github_token",
+        lambda token: True,
+    )
 
     response = authenticated_client.put(
         "/api/integrations/github",
@@ -629,7 +644,7 @@ def test_google_oauth_url_uses_signed_user_state(
         captured["state"] = state
         return FakeFlow()
 
-    monkeypatch.setattr(server, "create_google_flow", create_flow)
+    monkeypatch.setattr(integrations_router, "create_google_flow", create_flow)
 
     response = authenticated_client.get(
         "/api/integrations/google_calendar/auth-url",
@@ -684,7 +699,11 @@ def test_google_oauth_callback_saves_user_credentials(
         assert user_id == test_user.id
         return "test-code-verifier"
 
-    monkeypatch.setattr(server, "consume_google_oauth_state", consume_state)
+    monkeypatch.setattr(
+        integrations_router,
+        "consume_google_oauth_state",
+        consume_state,
+    )
 
     class FakeCredentials:
         def to_json(self):
@@ -707,7 +726,11 @@ def test_google_oauth_callback_saves_user_credentials(
         def fetch_token(self, *, code):
             assert code == "oauth-code"
 
-    monkeypatch.setattr(server, "create_google_flow", lambda **kwargs: FakeFlow())
+    monkeypatch.setattr(
+        integrations_router,
+        "create_google_flow",
+        lambda **kwargs: FakeFlow(),
+    )
 
     response = client.get(
         "/api/integrations/google_calendar/callback",

@@ -101,6 +101,13 @@ jobs:
           file: docker/my-default/Dockerfile
           push: false
 
+      - name: Build Docker proxy
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/docker-proxy/Dockerfile
+          push: false
+
       - name: Build sandbox
         uses: docker/build-push-action@v6
         with:
@@ -132,6 +139,9 @@ jobs:
 
           - image: my-default
             file: docker/my-default/Dockerfile
+
+          - image: docker-proxy
+            file: docker/docker-proxy/Dockerfile
 
           - image: sandbox
             file: docker/sandbox/Dockerfile

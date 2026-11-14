@@ -1,7 +1,8 @@
 import json
 import logging
+from collections.abc import AsyncGenerator
 from contextlib import AsyncExitStack, asynccontextmanager
-from typing import Any, AsyncIterator, Callable
+from typing import Any, Callable
 
 import httpx2
 from mcp import Client
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 async def connect_remote_mcp(
     url: str,
     headers: dict[str, str] | None = None,
-) -> AsyncIterator[Client]:
+) -> AsyncGenerator[Client]:
     async with httpx2.AsyncClient(
         headers=headers or {},
         timeout=httpx2.Timeout(30.0, read=300.0),
